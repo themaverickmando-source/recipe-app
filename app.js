@@ -1,11 +1,14 @@
 /*
-  Manolo's recipe book, step 1.
+  Manolo's recipe book.
 
   What this file does, in order:
     1. Load the recipes (from the phone if we already saved them,
        otherwise from data/recipes.json).
     2. Draw a card for each recipe, and filter that list as you type.
     3. Open one recipe when the address ends with #recipe/<id>.
+    4. On that recipe, − and + change how many people you are cooking for.
+       Ingredient amounts on the screen scale to match. The saved recipe
+       is never edited.
 
   The address hash is the part after the # sign. Changing it does not
   reload the page, and the phone's Back button walks back through those
@@ -23,6 +26,31 @@ var ready = false;
 
 // Where the list was scrolled, so Back returns to the same spot.
 var listScrollY = 0;
+
+// How many people the open recipe is scaled for. This lives only on the
+// screen. Opening a recipe (or coming back to it) starts again at the
+// number written in the recipe. Nothing here is written to localStorage.
+var chosenServings = 0;
+
+// The − button stops at 1. The + button stops at 24, enough for a crowd
+// and not so high that the amounts become nonsense.
+var MIN_SERVINGS = 1;
+var MAX_SERVINGS = 24;
+
+// Fractions a cook already knows from cups and spoons.
+// Each row is [numerator, denominator, glyph we print].
+// 1.5 becomes 1½, 0.333 becomes ⅓, and a whole number stays a whole number.
+var COOKING_FRACTIONS = [
+  [1, 8, "⅛"],
+  [1, 4, "¼"],
+  [1, 3, "⅓"],
+  [3, 8, "⅜"],
+  [1, 2, "½"],
+  [5, 8, "⅝"],
+  [2, 3, "⅔"],
+  [3, 4, "¾"],
+  [7, 8, "⅞"]
+];
 
 // localStorage is a small notebook the browser keeps for this website,
 // on this phone. GitHub Pages hosts every project on one shared host
@@ -58,13 +86,6 @@ function fold(value) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-function servingsLabel(count) {
-  if (count === 1) {
-    return "Serves 1";
-  }
-  return "Serves " + count;
-}
-
 function minutesLabel(count) {
   if (count === 1) {
     return "1 minute";
@@ -72,13 +93,11 @@ function minutesLabel(count) {
   return count + " minutes";
 }
 
-// One line of facts. The card leaves servings off; the recipe screen includes them.
-function metaLine(recipe, includeServings) {
-  var bits = [];
-  if (includeServings) {
-    bits.push(servingsLabel(recipe.servings));
-  }
-  bits.push(minutesLabel(recipe.total_minutes));
+// Time, cuisine, and protein. Servings are not on this line.
+// The card does not need them, and the recipe screen has − and + buttons
+// so the count is not written twice.
+function metaLine(recipe) {
+  var bits = [minutesLabel(recipe.total_minutes)];
   if (recipe.cuisine) {
     bits.push(recipe.cuisine);
   }
@@ -88,13 +107,86 @@ function metaLine(recipe, includeServings) {
   return bits.join(" · ");
 }
 
+// newServings / baseServings. This is 1 when the cook has not moved the
+// count. A missing base would divide by zero, so we leave amounts alone.
+function scaleFor(recipe, servings) {
+  var base = Number(recipe.servings);
+  if (!base || base <= 0) {
+    return 1;
+  }
+  return servings / base;
+}
+
+// Turn a number into text a cook can read.
+// Whole numbers stay whole (2, not 2.0). Values near a kitchen fraction
+// use that glyph, so 1.5 is 1½ and 0.333 is ⅓.
+function formatAmount(value) {
+  var thousandths = Math.round(value * 1000);
+  if (thousandths < 0) {
+    thousandths = 0;
+  }
+
+  var whole = Math.floor(thousandths / 1000);
+  var remainder = thousandths - whole * 1000;
+
+  // Start by assuming the leftover rounds down to the whole number.
+  var bestDiff = remainder;
+  var bestGlyph = "";
+  var bestDenom = 1;
+  var bestCarry = 0;
+
+  function consider(diff, glyph, denom, carry) {
+    // On a tie, keep the simpler fraction (smaller denominator).
+    if (diff < bestDiff || (diff === bestDiff && denom < bestDenom)) {
+      bestDiff = diff;
+      bestGlyph = glyph;
+      bestDenom = denom;
+      bestCarry = carry;
+    }
+  }
+
+  // A leftover near 1000 is really the next whole number.
+  consider(1000 - remainder, "", 1, 1);
+
+  var i;
+  for (i = 0; i < COOKING_FRACTIONS.length; i++) {
+    var numer = COOKING_FRACTIONS[i][0];
+    var denom = COOKING_FRACTIONS[i][1];
+    var glyph = COOKING_FRACTIONS[i][2];
+    var target = Math.round((1000 * numer) / denom);
+    consider(Math.abs(remainder - target), glyph, denom, 0);
+  }
+
+  whole = whole + bestCarry;
+
+  // A speck that would print as 0 still shows the smallest spoon mark,
+  // so the ingredient does not disappear.
+  if (thousandths > 0 && whole === 0 && bestGlyph === "") {
+    return "⅛";
+  }
+  if (bestGlyph === "") {
+    return String(whole);
+  }
+  if (whole === 0) {
+    return bestGlyph;
+  }
+  return String(whole) + bestGlyph;
+}
+
 // amount is null for "to taste" items (lemon, parmesan, a handful of herbs).
-// unit is printed as stored, including package sizes such as "28-oz cans".
-function amountText(ingredient) {
+// Those stay "to taste" at every serving count.
+//
+// scale multiplies a copy of the amount. ingredient.amount itself is not
+// changed, so the recipe saved on the phone stays as written.
+//
+// The unit is printed exactly as stored. A package size such as "28-oz cans"
+// lives in the unit, and the amount is how many packages. Scaling changes
+// the count (2 becomes 1) and leaves the "28-oz" alone.
+function amountText(ingredient, scale) {
   if (ingredient.amount === null || typeof ingredient.amount === "undefined") {
     return "to taste";
   }
-  var text = String(ingredient.amount);
+  var text = formatAmount(ingredient.amount * scale);
   if (ingredient.unit) {
     text += " " + ingredient.unit;
   }
@@ -236,7 +328,7 @@ function recipeCardHtml(recipe) {
   return (
     "<a class=\"card\" href=\"" + href + "\">" +
       "<h2>" + escapeHtml(recipe.title) + "</h2>" +
-      "<p class=\"meta\">" + escapeHtml(metaLine(recipe, false)) + "</p>" +
+      "<p class=\"meta\">" + escapeHtml(metaLine(recipe)) + "</p>" +
       tagsHtml(recipe.tags) +
     "</a>"
   );
@@ -277,28 +369,59 @@ function renderList() {
 
 // --- Drawing one recipe --------------------------------------------------
 
-function ingredientHtml(ingredient) {
+function ingredientHtml(ingredient, scale) {
   var prep = ingredient.prep
     ? "<span class=\"prep\">" + escapeHtml(ingredient.prep) + "</span>"
     : "";
   return (
     "<li>" +
-      "<strong class=\"amount\">" + escapeHtml(amountText(ingredient)) + "</strong> " +
+      "<strong class=\"amount\">" + escapeHtml(amountText(ingredient, scale)) + "</strong> " +
       escapeHtml(ingredient.name) +
       prep +
     "</li>"
   );
 }
 
-function recipeDetailHtml(recipe) {
+// The − and + buttons sit on either side of the current count.
+// Reset is only offered after the count has moved off the recipe's own number.
+function servingsControlHtml(recipe, servings) {
+  var lessDisabled = servings <= MIN_SERVINGS ? " disabled" : "";
+  var moreDisabled = servings >= MAX_SERVINGS ? " disabled" : "";
+  var reset = "";
+
+  if (servings !== recipe.servings) {
+    reset =
+      "<button type=\"button\" class=\"servings-reset\" id=\"servings-reset\">" +
+        "Reset to " + recipe.servings +
+      "</button>";
+  }
+
+  return (
+    "<h2>Servings</h2>" +
+    "<div class=\"servings\">" +
+      "<div class=\"servings-row\">" +
+        "<button type=\"button\" class=\"stepper\" id=\"servings-less\" aria-label=\"Fewer servings\"" + lessDisabled + ">−</button>" +
+        "<p class=\"servings-count\" id=\"servings-count\" aria-live=\"polite\">" +
+          "<span class=\"servings-num\">" + servings + "</span> " +
+          (servings === 1 ? "serving" : "servings") +
+        "</p>" +
+        "<button type=\"button\" class=\"stepper\" id=\"servings-more\" aria-label=\"More servings\"" + moreDisabled + ">+</button>" +
+      "</div>" +
+      reset +
+    "</div>"
+  );
+}
+
+function recipeDetailHtml(recipe, servings) {
   var ingredients = recipe.ingredients || [];
   var steps = recipe.steps || [];
+  var scale = scaleFor(recipe, servings);
   var ingredientList = "";
   var stepList = "<ol class=\"steps\">";
   var i;
 
   for (i = 0; i < ingredients.length; i++) {
-    ingredientList += ingredientHtml(ingredients[i]);
+    ingredientList += ingredientHtml(ingredients[i], scale);
   }
   for (i = 0; i < steps.length; i++) {
     stepList += "<li>" + escapeHtml(steps[i]) + "</li>";
@@ -315,9 +438,10 @@ function recipeDetailHtml(recipe) {
   return (
     "<a class=\"back\" href=\"#\">← Back to recipes</a>" +
     "<h1>" + escapeHtml(recipe.title) + "</h1>" +
-    "<p class=\"meta\">" + escapeHtml(metaLine(recipe, true)) + "</p>" +
+    "<p class=\"meta\">" + escapeHtml(metaLine(recipe)) + "</p>" +
     source +
     tagsHtml(recipe.tags) +
+    servingsControlHtml(recipe, servings) +
     "<h2>Ingredients</h2>" +
     "<ul class=\"ingredients\">" + ingredientList + "</ul>" +
     "<h2>Steps</h2>" +
@@ -378,13 +502,78 @@ function showFromHash() {
 
   var recipe = findRecipe(id);
   if (!recipe) {
+    chosenServings = 0;
     detail.innerHTML = missingRecipeHtml();
     document.title = "Recipe not found";
     return;
   }
 
-  detail.innerHTML = recipeDetailHtml(recipe);
+  // Every open starts at the recipe's own servings. A count chosen last
+  // time is forgotten on purpose: scaling is only for this look at the page.
+  chosenServings = recipe.servings;
+  if (chosenServings < MIN_SERVINGS) {
+    chosenServings = MIN_SERVINGS;
+  }
+  if (chosenServings > MAX_SERVINGS) {
+    chosenServings = MAX_SERVINGS;
+  }
+  drawDetail(recipe);
+}
+
+// Redraw the open recipe at chosenServings. Reads the recipe, does not write it.
+function drawDetail(recipe) {
+  var detail = document.getElementById("detail");
+  detail.innerHTML = recipeDetailHtml(recipe, chosenServings);
   document.title = recipe.title;
+}
+
+// Keep the count inside 1..24, then redraw. The same number means the cook
+// is already at the end of the range, so the page stays as it is.
+function setServings(next) {
+  var recipe = findRecipe(recipeIdFromHash());
+  if (!recipe) {
+    return;
+  }
+  if (next < MIN_SERVINGS) {
+    next = MIN_SERVINGS;
+  }
+  if (next > MAX_SERVINGS) {
+    next = MAX_SERVINGS;
+  }
+  if (next === chosenServings) {
+    return;
+  }
+  chosenServings = next;
+  drawDetail(recipe);
+}
+
+// Walk up from the thing that was tapped until we find a button, if any.
+function clickedButton(event) {
+  var node = event.target;
+  while (node) {
+    if (node.tagName === "BUTTON") {
+      return node;
+    }
+    node = node.parentNode;
+  }
+  return null;
+}
+
+function onDetailClick(event) {
+  var button = clickedButton(event);
+  if (!button) {
+    return;
+  }
+  if (button.id === "servings-less") {
+    setServings(chosenServings - 1);
+  } else if (button.id === "servings-more") {
+    setServings(chosenServings + 1);
+  } else if (button.id === "servings-reset") {
+    var recipe = findRecipe(recipeIdFromHash());
+    if (recipe) {
+      setServings(recipe.servings);
+    }
+  }
 }
 
 // --- Start ---------------------------------------------------------------
@@ -402,6 +591,10 @@ async function start() {
       showFromHash();
     }
   });
+
+  // One listener for the life of the page. The buttons are redrawn each
+  // time the count changes, and this still hears the taps.
+  document.getElementById("detail").addEventListener("click", onDetailClick);
 
   try {
     recipes = await loadRecipes();

@@ -253,6 +253,83 @@ h2 {
   font-size: 1.5rem;
 }
 
+/* Servings stepper. The − and + buttons are 56px, above the 48px tap size.
+   Colors come from the same variables as the back button. */
+.servings-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  border: 2px solid var(--accent);
+  border-radius: 14px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  touch-action: manipulation;
+}
+
+.stepper:active {
+  background: var(--accent-pressed);
+  border-color: var(--accent-pressed);
+}
+
+.stepper:disabled {
+  background: var(--field);
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.servings-count {
+  flex: 1 1 auto;
+  margin: 0;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.servings-num {
+  font-family: Georgia, "Palatino Linotype", Palatino, serif;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+/* Quiet text button. Smaller than − and + on purpose. */
+.servings-reset {
+  display: block;
+  margin: 0.4rem auto 0;
+  padding: 0.15rem 0.35rem;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  appearance: none;
+  -webkit-appearance: none;
+  touch-action: manipulation;
+}
+
+.servings-reset:active {
+  color: var(--accent-pressed);
+}
+
 .ingredients {
   margin: 0;
   padding: 0;
@@ -295,6 +372,7 @@ h2 {
 }
 
 a:focus-visible,
+button:focus-visible,
 #search:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;

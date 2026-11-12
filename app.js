@@ -9,10 +9,14 @@
     4. On that recipe, − and + change how many people you are cooking for.
        Ingredient amounts on the screen scale to match. The saved recipe
        is never edited.
+    5. Add those scaled ingredients to a grocery list (#list). The same
+       ingredient from two recipes becomes one line. The list is saved
+       on the phone, in its own note, separate from the recipes.
 
   The address hash is the part after the # sign. Changing it does not
   reload the page, and the phone's Back button walks back through those
-  changes. Example: #recipe/5 is "Baked shrimp fra diavolo".
+  changes. Example: #recipe/5 is "Baked shrimp fra diavolo". #list is
+  the grocery list.
 
   There is no framework and no build step. This script is plain JavaScript
   that the browser runs from the <script> tag at the bottom of index.html.
@@ -36,6 +40,21 @@ var chosenServings = 0;
 // and not so high that the amounts become nonsense.
 var MIN_SERVINGS = 1;
 var MAX_SERVINGS = 24;
+
+// The grocery list currently on this phone.
+// Shape: { recipes: [ ... ], checked: [ ... ] }. See readGrocery.
+var grocery = { recipes: [], checked: [] };
+
+// True while "Clear the whole grocery list?" is on screen.
+var clearConfirmOpen = false;
+
+// True while a recipe that is already on the list is asking
+// "Update it?" instead of adding a second copy.
+var updateOfferOpen = false;
+
+// Timers that hide the short "Added" / "Removed" messages.
+var detailNoticeTimer = 0;
+var listNoticeTimer = 0;
 
 // Fractions a cook already knows from cups and spoons.
 // Each row is [numerator, denominator, glyph we print].
@@ -78,6 +97,11 @@ var PACKAGE_WORDS = [
 // "recipe-app." and will not collide with a different project.
 var RECIPES_KEY = "recipe-app.recipes";
 var VERSION_KEY = "recipe-app.data-version";
+
+// A different key from the recipes, so clearing the grocery list
+// never deletes the recipe book. Same "recipe-app." prefix so it
+// will not collide with another project on this GitHub Pages host.
+var GROCERY_KEY = "recipe-app.grocery";
 
 // Which edition of data/recipes.json we last copied onto the phone.
 // After you edit the seed file and want every phone to pick up the new
@@ -490,6 +514,7 @@ function recipeDetailHtml(recipe, servings) {
     source +
     tagsHtml(recipe.tags) +
     servingsControlHtml(recipe, servings) +
+    groceryControlsHtml(recipe) +
     "<h2>Ingredients</h2>" +
     "<ul class=\"ingredients\">" + ingredientList + "</ul>" +
     "<h2>Steps</h2>" +
@@ -515,7 +540,7 @@ function findRecipe(id) {
   return null;
 }
 
-// "#recipe/5" -> "5". Anything else means the home screen.
+// "#recipe/5" -> "5". "#list" and a bare "#" are not recipe ids.
 function recipeIdFromHash() {
   var match = /^#recipe\/([^/]+)$/.exec(window.location.hash);
   if (!match) {
@@ -524,31 +549,66 @@ function recipeIdFromHash() {
   return decodeURIComponent(match[1]);
 }
 
+// "#list" is the grocery list. "#recipe/5" is one recipe.
+// Anything else, including no hash at all, is the home screen.
+function screenFromHash() {
+  if (window.location.hash === "#list") {
+    return "list";
+  }
+  if (recipeIdFromHash()) {
+    return "recipe";
+  }
+  return "home";
+}
+
 function showFromHash() {
   var home = document.getElementById("home");
   var detail = document.getElementById("detail");
-  var id = recipeIdFromHash();
+  var listScreen = document.getElementById("grocery");
+  var next = screenFromHash();
 
-  if (!id) {
+  // Opening a screen is a fresh visit. The update question and the
+  // clear-all question belong to the screen we just left.
+  updateOfferOpen = false;
+  if (next !== "list") {
+    clearConfirmOpen = false;
+  }
+
+  // Remember the list position only when we are actually leaving it.
+  if (next !== "home" && !home.hidden) {
+    listScrollY = window.scrollY;
+  }
+
+  if (next === "home") {
     var y = listScrollY;
     detail.hidden = true;
     detail.innerHTML = "";
+    listScreen.hidden = true;
     home.hidden = false;
     document.title = "Recipes";
+    updateNav();
     window.scrollTo(0, y);
     return;
   }
 
-  // Remember the list position only when we are actually leaving it.
-  if (!home.hidden) {
-    listScrollY = window.scrollY;
+  if (next === "list") {
+    home.hidden = true;
+    detail.hidden = true;
+    detail.innerHTML = "";
+    listScreen.hidden = false;
+    document.title = "Grocery list";
+    renderGrocery();
+    window.scrollTo(0, 0);
+    return;
   }
 
   home.hidden = true;
+  listScreen.hidden = true;
   detail.hidden = false;
   window.scrollTo(0, 0);
+  updateNav();
 
-  var recipe = findRecipe(id);
+  var recipe = findRecipe(recipeIdFromHash());
   if (!recipe) {
     chosenServings = 0;
     detail.innerHTML = missingRecipeHtml();
@@ -570,6 +630,12 @@ function showFromHash() {
 
 // Redraw the open recipe at chosenServings. Reads the recipe, does not write it.
 function drawDetail(recipe) {
+  // A redraw replaces the confirmation line, so cancel its hide-timer.
+  // The caller can show a new message after this returns.
+  if (detailNoticeTimer) {
+    clearTimeout(detailNoticeTimer);
+    detailNoticeTimer = 0;
+  }
   var detail = document.getElementById("detail");
   detail.innerHTML = recipeDetailHtml(recipe, chosenServings);
   document.title = recipe.title;
@@ -621,6 +687,771 @@ function onDetailClick(event) {
     if (recipe) {
       setServings(recipe.servings);
     }
+  } else if (button.id === "add-grocery") {
+    onAddGrocery();
+  } else if (button.id === "grocery-update-yes") {
+    onUpdateGrocery();
+  } else if (button.id === "grocery-update-no") {
+    updateOfferOpen = false;
+    var current = findRecipe(recipeIdFromHash());
+    if (current) {
+      drawDetail(current);
+    }
+  }
+}
+
+// --- Grocery list --------------------------------------------------------
+//
+// What we save (localStorage key "recipe-app.grocery"):
+//   recipes: one entry per recipe you added. Each entry remembers the
+//            title, the serving count you had picked, and a copy of the
+//            ingredients already multiplied for that count.
+//   checked: keys of lines you have tapped off. A key is the folded
+//            name, a separator, and the folded unit.
+//
+// The copy is on purpose. Changing servings on the recipe screen later
+// does not silently change the grocery list. Tap Update when you want
+// the list to follow a new count.
+//
+// Matching lines are combined when you look at the list, not when you
+// save. "Aïoli" + "tsp" and "aioli" + "TSP" are the same line. A null
+// amount ("to taste") is not turned into 0, and it is not added up.
+
+function emptyGrocery() {
+  return { recipes: [], checked: [] };
+}
+
+function readGrocery() {
+  var raw = storageGet(GROCERY_KEY);
+  if (!raw) {
+    return emptyGrocery();
+  }
+  try {
+    var parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.recipes) || !Array.isArray(parsed.checked)) {
+      return emptyGrocery();
+    }
+    return parsed;
+  } catch (error) {
+    return emptyGrocery();
+  }
+}
+
+function writeGrocery() {
+  storageSet(GROCERY_KEY, JSON.stringify(grocery));
+}
+
+// "2 servings", or "1 serving" when the count is one.
+function servingsPhrase(count) {
+  if (count === 1) {
+    return "1 serving";
+  }
+  return count + " servings";
+}
+
+function findGroceryRecipe(id) {
+  var wanted = String(id);
+  var i;
+  for (i = 0; i < grocery.recipes.length; i++) {
+    if (String(grocery.recipes[i].id) === wanted) {
+      return grocery.recipes[i];
+    }
+  }
+  return null;
+}
+
+// Copy the ingredients at the serving count on screen.
+// amount null stays null. Every other amount is multiplied once, here,
+// and the grocery list stores that result.
+function snapshotRecipe(recipe, servings) {
+  var scale = scaleFor(recipe, servings);
+  var ingredients = recipe.ingredients || [];
+  var saved = [];
+  var i, item, amount;
+
+  for (i = 0; i < ingredients.length; i++) {
+    item = ingredients[i];
+    if (item.amount === null || typeof item.amount === "undefined") {
+      amount = null;
+    } else {
+      amount = item.amount * scale;
+    }
+    saved.push({
+      name: item.name,
+      amount: amount,
+      unit: item.unit || ""
+    });
+  }
+
+  return {
+    id: String(recipe.id),
+    title: recipe.title,
+    servings: servings,
+    ingredients: saved
+  };
+}
+
+function addRecipeToGrocery(recipe, servings) {
+  if (findGroceryRecipe(recipe.id)) {
+    return false;
+  }
+  grocery.recipes.push(snapshotRecipe(recipe, servings));
+  writeGrocery();
+  return true;
+}
+
+function updateRecipeOnGrocery(recipe, servings) {
+  var id = String(recipe.id);
+  var next = [];
+  var replaced = false;
+  var i;
+
+  for (i = 0; i < grocery.recipes.length; i++) {
+    if (String(grocery.recipes[i].id) === id) {
+      // Keep a single copy even if an old save somehow had two.
+      if (!replaced) {
+        next.push(snapshotRecipe(recipe, servings));
+        replaced = true;
+      }
+    } else {
+      next.push(grocery.recipes[i]);
+    }
+  }
+  if (!replaced) {
+    next.push(snapshotRecipe(recipe, servings));
+  }
+  grocery.recipes = next;
+  pruneChecked();
+  writeGrocery();
+}
+
+function removeRecipeFromGrocery(id) {
+  var wanted = String(id);
+  var next = [];
+  var removed = null;
+  var i;
+
+  for (i = 0; i < grocery.recipes.length; i++) {
+    if (String(grocery.recipes[i].id) === wanted) {
+      removed = grocery.recipes[i];
+    } else {
+      next.push(grocery.recipes[i]);
+    }
+  }
+  grocery.recipes = next;
+  pruneChecked();
+  writeGrocery();
+  return removed;
+}
+
+// Folded name + folded unit. Case and accents do not count as different.
+// The separator is a character that will not show up in an ingredient name.
+function itemKey(name, unit) {
+  return fold(name) + "\u0000" + fold(unit || "");
+}
+
+function rememberRecipe(row, entry) {
+  var id = String(entry.id);
+  var i;
+  for (i = 0; i < row.recipes.length; i++) {
+    if (row.recipes[i].id === id) {
+      return;
+    }
+  }
+  row.recipes.push({
+    id: id,
+    title: entry.title || "Recipe"
+  });
+}
+
+// One row per name + unit. Amounts are summed. Null amounts stay null
+// unless some recipe also gave a real number for that same name and unit.
+function combinedItems() {
+  var order = [];
+  var map = {};
+  var r, i, entry, ingredient, key, row, add;
+
+  for (r = 0; r < grocery.recipes.length; r++) {
+    entry = grocery.recipes[r];
+    if (!entry || !Array.isArray(entry.ingredients)) {
+      continue;
+    }
+    for (i = 0; i < entry.ingredients.length; i++) {
+      ingredient = entry.ingredients[i];
+      if (!ingredient || !ingredient.name) {
+        continue;
+      }
+      key = itemKey(ingredient.name, ingredient.unit);
+      row = map[key];
+      if (!row) {
+        row = {
+          key: key,
+          name: ingredient.name,
+          unit: ingredient.unit || "",
+          amount: null,
+          recipes: []
+        };
+        map[key] = row;
+        order.push(row);
+      }
+      if (ingredient.amount !== null && typeof ingredient.amount !== "undefined") {
+        add = Number(ingredient.amount);
+        if (!isNaN(add)) {
+          if (row.amount === null) {
+            row.amount = 0;
+          }
+          // Thousandths match formatAmount, so 0.1 + 0.2 does not
+          // become a long decimal the cook cannot use.
+          row.amount = Math.round((row.amount + add) * 1000) / 1000;
+        }
+      }
+      rememberRecipe(row, entry);
+    }
+  }
+
+  return order;
+}
+
+// Drop check marks for lines that are no longer on the list.
+// A line that is still there, from a recipe you did not remove, stays checked.
+function pruneChecked() {
+  var still = {};
+  var items = combinedItems();
+  var checks = [];
+  var i;
+  for (i = 0; i < items.length; i++) {
+    still[items[i].key] = true;
+  }
+  for (i = 0; i < grocery.checked.length; i++) {
+    if (still[grocery.checked[i]]) {
+      checks.push(grocery.checked[i]);
+    }
+  }
+  grocery.checked = checks;
+}
+
+// Checked rows go last. Otherwise alphabetical by name, then by unit,
+// so two units of butter sit next to each other.
+function compareGroceryItems(a, b) {
+  if (a.checked !== b.checked) {
+    if (a.checked) {
+      return 1;
+    }
+    return -1;
+  }
+  if (a.nameKey < b.nameKey) {
+    return -1;
+  }
+  if (a.nameKey > b.nameKey) {
+    return 1;
+  }
+  if (a.unitKey < b.unitKey) {
+    return -1;
+  }
+  if (a.unitKey > b.unitKey) {
+    return 1;
+  }
+  return 0;
+}
+
+function itemsForDisplay() {
+  var items = combinedItems();
+  var checked = {};
+  var i;
+
+  for (i = 0; i < grocery.checked.length; i++) {
+    checked[grocery.checked[i]] = true;
+  }
+  for (i = 0; i < items.length; i++) {
+    items[i].checked = !!checked[items[i].key];
+    items[i].nameKey = fold(items[i].name);
+    items[i].unitKey = fold(items[i].unit || "");
+  }
+  items.sort(compareGroceryItems);
+  return items;
+}
+
+function toggleChecked(key) {
+  var next = [];
+  var found = false;
+  var i;
+  for (i = 0; i < grocery.checked.length; i++) {
+    if (grocery.checked[i] === key) {
+      found = true;
+    } else {
+      next.push(grocery.checked[i]);
+    }
+  }
+  if (!found) {
+    next.push(key);
+  }
+  grocery.checked = next;
+  writeGrocery();
+}
+
+// Remove every checked line from the saved recipes. A recipe with nothing
+// left to buy is taken off the list too.
+function clearCheckedItems() {
+  var items = itemsForDisplay();
+  var drop = {};
+  var n = 0;
+  var i, r, entry, kept, ingredient;
+
+  for (i = 0; i < items.length; i++) {
+    if (items[i].checked) {
+      drop[items[i].key] = true;
+      n = n + 1;
+    }
+  }
+  if (n === 0) {
+    return 0;
+  }
+
+  for (r = 0; r < grocery.recipes.length; r++) {
+    entry = grocery.recipes[r];
+    kept = [];
+    if (!entry.ingredients) {
+      entry.ingredients = [];
+      continue;
+    }
+    for (i = 0; i < entry.ingredients.length; i++) {
+      ingredient = entry.ingredients[i];
+      if (!drop[itemKey(ingredient.name, ingredient.unit)]) {
+        kept.push(ingredient);
+      }
+    }
+    entry.ingredients = kept;
+  }
+
+  var recipesLeft = [];
+  for (r = 0; r < grocery.recipes.length; r++) {
+    if (grocery.recipes[r].ingredients && grocery.recipes[r].ingredients.length > 0) {
+      recipesLeft.push(grocery.recipes[r]);
+    }
+  }
+  grocery.recipes = recipesLeft;
+
+  var checksLeft = [];
+  for (i = 0; i < grocery.checked.length; i++) {
+    if (!drop[grocery.checked[i]]) {
+      checksLeft.push(grocery.checked[i]);
+    }
+  }
+  grocery.checked = checksLeft;
+  writeGrocery();
+  return n;
+}
+
+function clearAllGrocery() {
+  grocery = emptyGrocery();
+  clearConfirmOpen = false;
+  writeGrocery();
+}
+
+// The number on the Grocery list tab: how many combined lines are on the list.
+function updateNav() {
+  var countEl = document.getElementById("grocery-count");
+  var recipesTab = document.getElementById("tab-recipes");
+  var listTab = document.getElementById("tab-list");
+  var total = combinedItems().length;
+
+  if (!countEl || !recipesTab || !listTab) {
+    return;
+  }
+
+  if (total > 0) {
+    countEl.hidden = false;
+    countEl.textContent = String(total);
+  } else {
+    countEl.hidden = true;
+    countEl.textContent = "";
+  }
+
+  if (screenFromHash() === "list") {
+    listTab.setAttribute("aria-current", "page");
+    recipesTab.removeAttribute("aria-current");
+  } else {
+    recipesTab.setAttribute("aria-current", "page");
+    listTab.removeAttribute("aria-current");
+  }
+}
+
+function showTimedNotice(id, text) {
+  var el = document.getElementById(id);
+  if (!el) {
+    return;
+  }
+  el.hidden = false;
+  el.textContent = text;
+
+  if (id === "detail-notice") {
+    if (detailNoticeTimer) {
+      clearTimeout(detailNoticeTimer);
+    }
+    detailNoticeTimer = setTimeout(function () {
+      var node = document.getElementById("detail-notice");
+      if (node) {
+        node.hidden = true;
+        node.textContent = "";
+      }
+    }, 4000);
+    return;
+  }
+
+  if (listNoticeTimer) {
+    clearTimeout(listNoticeTimer);
+  }
+  listNoticeTimer = setTimeout(function () {
+    var node = document.getElementById("grocery-notice");
+    if (node) {
+      node.hidden = true;
+      node.textContent = "";
+    }
+  }, 4000);
+}
+
+function noticeSlot() {
+  return "<p id=\"detail-notice\" class=\"notice\" role=\"status\" hidden></p>";
+}
+
+function offerHtml(saved) {
+  var now = chosenServings;
+  var previous = Number(saved.servings);
+  var message;
+
+  if (previous === now) {
+    message = "This recipe is already on your grocery list at " +
+      servingsPhrase(now) + ". Update it with the amounts shown now?";
+  } else {
+    message = "This recipe is already on your grocery list at " +
+      servingsPhrase(previous) + ". Update it to " + servingsPhrase(now) + "?";
+  }
+
+  return (
+    "<div class=\"offer\">" +
+      "<p>" + escapeHtml(message) + "</p>" +
+      "<button type=\"button\" class=\"add-grocery\" id=\"grocery-update-yes\">Update</button>" +
+      "<button type=\"button\" class=\"secondary\" id=\"grocery-update-no\">Keep current</button>" +
+    "</div>"
+  );
+}
+
+function groceryControlsHtml(recipe) {
+  var saved = findGroceryRecipe(recipe.id);
+  if (updateOfferOpen && saved) {
+    return (
+      "<div class=\"grocery-controls\">" +
+        offerHtml(saved) +
+        noticeSlot() +
+      "</div>"
+    );
+  }
+
+  var label = saved ? "Update grocery list" : "Add to grocery list";
+  return (
+    "<div class=\"grocery-controls\">" +
+      "<button type=\"button\" class=\"add-grocery\" id=\"add-grocery\">" +
+        escapeHtml(label) +
+      "</button>" +
+      noticeSlot() +
+    "</div>"
+  );
+}
+
+function onAddGrocery() {
+  var recipe = findRecipe(recipeIdFromHash());
+  if (!recipe) {
+    return;
+  }
+  // Already saved: ask before replacing. Never add a second copy.
+  if (findGroceryRecipe(recipe.id)) {
+    updateOfferOpen = true;
+    drawDetail(recipe);
+    return;
+  }
+  addRecipeToGrocery(recipe, chosenServings);
+  drawDetail(recipe);
+  showTimedNotice("detail-notice", "Added at " + servingsPhrase(chosenServings) + ".");
+  updateNav();
+}
+
+function onUpdateGrocery() {
+  var recipe = findRecipe(recipeIdFromHash());
+  if (!recipe) {
+    return;
+  }
+  updateRecipeOnGrocery(recipe, chosenServings);
+  updateOfferOpen = false;
+  drawDetail(recipe);
+  showTimedNotice("detail-notice", "Updated to " + servingsPhrase(chosenServings) + ".");
+  updateNav();
+}
+
+// Print the amount the same way as the recipe screen. Scale is 1 because
+// we already multiplied by the serving change when the recipe was added.
+// Whatever the recipe screen does with a unit, this line does too.
+function groceryAmountText(item) {
+  if (item.amount === null) {
+    return "";
+  }
+  return amountText({ amount: item.amount, unit: item.unit }, 1);
+}
+
+function fromLine(item) {
+  var titles = [];
+  var i;
+  for (i = 0; i < item.recipes.length; i++) {
+    titles.push(item.recipes[i].title);
+  }
+  var who = titles.join(" · ");
+  if (item.amount === null) {
+    if (!who) {
+      return "to taste";
+    }
+    return "to taste · " + who;
+  }
+  return who;
+}
+
+function itemLineHtml(item) {
+  var name = escapeHtml(item.name);
+  var shown = groceryAmountText(item);
+  if (!shown) {
+    return name;
+  }
+  return "<strong class=\"amount\">" + escapeHtml(shown) + "</strong> " + name;
+}
+
+function groceryItemHtml(item) {
+  var pressed = item.checked ? "true" : "false";
+  var checkedClass = item.checked ? " is-checked" : "";
+  var tick = item.checked ? "✓" : "";
+  return (
+    "<button type=\"button\" class=\"grocery-item" + checkedClass + "\" data-key=\"" +
+      encodeURIComponent(item.key) + "\" aria-pressed=\"" + pressed + "\">" +
+      "<span class=\"tick\" aria-hidden=\"true\">" + tick + "</span>" +
+      "<span class=\"grocery-text\">" +
+        "<span class=\"grocery-line\">" + itemLineHtml(item) + "</span>" +
+        "<span class=\"from\">" + escapeHtml(fromLine(item)) + "</span>" +
+      "</span>" +
+    "</button>"
+  );
+}
+
+// Neighboring rows that share a name are wrapped together, so 1 tbsp
+// butter and 1 pat butter read as one ingredient with two units.
+// A name that only has one unit is just the row. The name is already on it.
+function itemsHtml(list) {
+  var html = "";
+  var i = 0;
+
+  while (i < list.length) {
+    var start = i;
+    var nameKey = list[i].nameKey;
+    i = i + 1;
+    while (i < list.length && list[i].nameKey === nameKey) {
+      i = i + 1;
+    }
+
+    var block = "<ul class=\"grocery-items\">";
+    var j;
+    for (j = start; j < i; j++) {
+      block += "<li>" + groceryItemHtml(list[j]) + "</li>";
+    }
+    block += "</ul>";
+
+    if (i - start > 1) {
+      html += "<section class=\"grocery-group\"><h3>" + escapeHtml(list[start].name) + "</h3>" + block + "</section>";
+    } else {
+      html += block;
+    }
+  }
+
+  return html;
+}
+
+function recipeRowHtml(entry) {
+  var servings = Number(entry.servings);
+  var meta = "";
+  var title = entry.title || "Recipe";
+
+  if (!isNaN(servings) && servings > 0) {
+    meta = "<p class=\"meta\">" + escapeHtml(servingsPhrase(servings)) + "</p>";
+  }
+
+  return (
+    "<li class=\"grocery-recipe\">" +
+      "<div class=\"grocery-recipe-text\">" +
+        "<p class=\"grocery-recipe-title\">" + escapeHtml(title) + "</p>" +
+        meta +
+      "</div>" +
+      "<button type=\"button\" class=\"remove-recipe\" data-remove=\"" + escapeHtml(String(entry.id)) + "\" aria-label=\"Remove " + escapeHtml(title) + "\">Remove</button>" +
+    "</li>"
+  );
+}
+
+function recipesSectionHtml() {
+  if (!grocery.recipes.length) {
+    return "";
+  }
+  var html = "<h2>On this list</h2><ul class=\"on-list\">";
+  var i;
+  for (i = 0; i < grocery.recipes.length; i++) {
+    html += recipeRowHtml(grocery.recipes[i]);
+  }
+  html += "</ul>";
+  return html;
+}
+
+function actionsHtml(items) {
+  var checkedN = 0;
+  var i;
+  for (i = 0; i < items.length; i++) {
+    if (items[i].checked) {
+      checkedN = checkedN + 1;
+    }
+  }
+
+  var disabled = checkedN === 0 ? " disabled" : "";
+  var clearAll;
+
+  if (clearConfirmOpen) {
+    clearAll =
+      "<div class=\"offer\">" +
+        "<p>Clear the whole grocery list? This removes every recipe and item.</p>" +
+        "<button type=\"button\" class=\"add-grocery\" id=\"clear-all-yes\">Clear all</button>" +
+        "<button type=\"button\" class=\"secondary\" id=\"clear-all-no\">Cancel</button>" +
+      "</div>";
+  } else {
+    clearAll = "<button type=\"button\" class=\"secondary\" id=\"clear-all\">Clear all</button>";
+  }
+
+  return (
+    "<div class=\"grocery-actions\">" +
+      "<button type=\"button\" class=\"secondary\" id=\"clear-checked\"" + disabled + ">Clear checked</button>" +
+      clearAll +
+    "</div>"
+  );
+}
+
+function summaryText(items) {
+  var itemText = items.length === 1 ? "1 item" : items.length + " items";
+  var recipeText = grocery.recipes.length === 1 ? "1 recipe" : grocery.recipes.length + " recipes";
+  return itemText + " from " + recipeText;
+}
+
+function renderGrocery() {
+  var summary = document.getElementById("grocery-summary");
+  var body = document.getElementById("grocery-body");
+  var items = itemsForDisplay();
+  var buy = [];
+  var done = [];
+  var html = "";
+  var i;
+
+  updateNav();
+
+  if (!summary || !body) {
+    return;
+  }
+
+  if (grocery.recipes.length === 0) {
+    summary.textContent = "Nothing here yet.";
+    body.innerHTML = "<p class=\"empty\">Your grocery list is empty. Open a recipe and tap Add to grocery list.</p>";
+    return;
+  }
+
+  summary.textContent = summaryText(items);
+  html = recipesSectionHtml();
+
+  for (i = 0; i < items.length; i++) {
+    if (items[i].checked) {
+      done.push(items[i]);
+    } else {
+      buy.push(items[i]);
+    }
+  }
+
+  if (buy.length) {
+    html += "<h2>To buy</h2>" + itemsHtml(buy);
+  }
+  if (done.length) {
+    html += "<h2>Checked</h2>" + itemsHtml(done);
+  }
+  html += actionsHtml(items);
+  body.innerHTML = html;
+}
+
+function focusGroceryItem(encoded) {
+  var buttons = document.querySelectorAll(".grocery-item");
+  var i;
+  for (i = 0; i < buttons.length; i++) {
+    if (buttons[i].getAttribute("data-key") === encoded) {
+      buttons[i].focus();
+      return;
+    }
+  }
+}
+
+function onGroceryClick(event) {
+  var button = clickedButton(event);
+  var removed, encoded, n;
+
+  if (!button) {
+    return;
+  }
+
+  if (button.id === "clear-checked") {
+    n = clearCheckedItems();
+    clearConfirmOpen = false;
+    renderGrocery();
+    if (n === 1) {
+      showTimedNotice("grocery-notice", "Cleared 1 checked item.");
+    } else if (n > 1) {
+      showTimedNotice("grocery-notice", "Cleared " + n + " checked items.");
+    }
+    return;
+  }
+
+  if (button.id === "clear-all") {
+    clearConfirmOpen = true;
+    renderGrocery();
+    var yes = document.getElementById("clear-all-yes");
+    if (yes) {
+      yes.focus();
+    }
+    return;
+  }
+
+  if (button.id === "clear-all-no") {
+    clearConfirmOpen = false;
+    renderGrocery();
+    return;
+  }
+
+  if (button.id === "clear-all-yes") {
+    clearAllGrocery();
+    renderGrocery();
+    showTimedNotice("grocery-notice", "Cleared your grocery list.");
+    return;
+  }
+
+  if (button.getAttribute("data-remove")) {
+    removed = removeRecipeFromGrocery(button.getAttribute("data-remove"));
+    clearConfirmOpen = false;
+    renderGrocery();
+    if (removed && removed.title) {
+      showTimedNotice("grocery-notice", "Removed " + removed.title + ".");
+    }
+    return;
+  }
+
+  if (button.getAttribute("data-key")) {
+    encoded = button.getAttribute("data-key");
+    clearConfirmOpen = false;
+    toggleChecked(decodeURIComponent(encoded));
+    renderGrocery();
+    focusGroceryItem(encoded);
   }
 }
 
@@ -635,7 +1466,10 @@ async function start() {
   });
 
   window.addEventListener("hashchange", function () {
-    if (ready) {
+    // Home and the grocery list work even if the recipe file failed to
+    // load. A recipe screen waits until the recipes are ready, so we
+    // don't flash "Recipe not found" during that load.
+    if (ready || screenFromHash() !== "recipe") {
       showFromHash();
     }
   });
@@ -643,11 +1477,28 @@ async function start() {
   // One listener for the life of the page. The buttons are redrawn each
   // time the count changes, and this still hears the taps.
   document.getElementById("detail").addEventListener("click", onDetailClick);
+  document.getElementById("grocery").addEventListener("click", onGroceryClick);
+
+  // Tapping Recipes while you are already there should not jump to the top.
+  document.getElementById("tab-recipes").addEventListener("click", function (event) {
+    if (screenFromHash() === "home") {
+      event.preventDefault();
+    }
+  });
+
+  // The grocery list does not need the recipe file. Load it first so the
+  // bottom bar can show the count even while recipes are still loading.
+  grocery = readGrocery();
+  updateNav();
 
   try {
     recipes = await loadRecipes();
   } catch (error) {
     showLoadError();
+    // The saved grocery list can still open if the address is #list.
+    if (screenFromHash() === "list") {
+      showFromHash();
+    }
     return;
   }
 

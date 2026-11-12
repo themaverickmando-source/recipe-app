@@ -12,11 +12,15 @@
     5. Add those scaled ingredients to a grocery list (#list). The same
        ingredient from two recipes becomes one line. The list is saved
        on the phone, in its own note, separate from the recipes.
+    6. Start cooking opens one step at a time (#cook/<id>/<step>, step
+       numbers start at 1). Back, Next, and a sideways swipe move between
+       steps. The screen stays awake while that page is open, when the
+       phone allows it.
 
   The address hash is the part after the # sign. Changing it does not
   reload the page, and the phone's Back button walks back through those
-  changes. Example: #recipe/5 is "Baked shrimp fra diavolo". #list is
-  the grocery list.
+  changes. Example: #recipe/5 is "Baked shrimp fra diavolo". #cook/5/2
+  is step 2 of that recipe. #list is the grocery list.
 
   There is no framework and no build step. This script is plain JavaScript
   that the browser runs from the <script> tag at the bottom of index.html.
@@ -32,9 +36,15 @@ var ready = false;
 var listScrollY = 0;
 
 // How many people the open recipe is scaled for. This lives only on the
-// screen. Opening a recipe (or coming back to it) starts again at the
-// number written in the recipe. Nothing here is written to localStorage.
+// screen. Nothing here is written to localStorage.
+// Opening a recipe from the list starts at the number written in the
+// recipe. Moving between that recipe and its cooking steps keeps the
+// count, so the cooking screen shows the amounts you just picked.
 var chosenServings = 0;
+
+// The recipe id that chosenServings belongs to. Empty when the count
+// should be read from the recipe again (home, grocery list, another recipe).
+var servingsForId = "";
 
 // The − button stops at 1. The + button stops at 24, enough for a crowd
 // and not so high that the amounts become nonsense.
@@ -55,6 +65,20 @@ var updateOfferOpen = false;
 // Timers that hide the short "Added" / "Removed" messages.
 var detailNoticeTimer = 0;
 var listNoticeTimer = 0;
+
+// Finger-down point for a sideways swipe on the cooking screen.
+// Null when no swipe is in progress.
+var cookSwipe = null;
+
+// True while the ingredients panel on the cooking screen is open,
+// so Next and Back keep it open. Leaving cooking mode starts it closed.
+var cookIngredientsOpen = false;
+var cookIngredientsFor = "";
+
+// The screen wake lock held during cooking, or null when we do not have one.
+// wakeRequest throws away a reply that arrives after we have left the screen.
+var wakeLock = null;
+var wakeRequest = 0;
 
 // Fractions a cook already knows from cups and spoons.
 // Each row is [numerator, denominator, glyph we print].
@@ -514,12 +538,23 @@ function recipeDetailHtml(recipe, servings) {
     source +
     tagsHtml(recipe.tags) +
     servingsControlHtml(recipe, servings) +
+    startCookingHtml(recipe) +
     groceryControlsHtml(recipe) +
     "<h2>Ingredients</h2>" +
     "<ul class=\"ingredients\">" + ingredientList + "</ul>" +
     "<h2>Steps</h2>" +
     stepList
   );
+}
+
+// Big button under the serving count. The cooking address carries the
+// recipe id and step 1, so a reload opens on that step.
+function startCookingHtml(recipe) {
+  var steps = recipe.steps || [];
+  if (!steps.length) {
+    return "";
+  }
+  return "<a class=\"cook-start\" href=\"" + cookHref(recipe.id, 1) + "\">Start cooking</a>";
 }
 
 function missingRecipeHtml() {
@@ -549,11 +584,65 @@ function recipeIdFromHash() {
   return decodeURIComponent(match[1]);
 }
 
+function recipeHref(id) {
+  return "#recipe/" + encodeURIComponent(id);
+}
+
+// "#cook/5/2" is recipe 5, step 2. Step numbers start at 1.
+// "#cook/5" alone is treated as step 1.
+function cookHref(id, step) {
+  return "#cook/" + encodeURIComponent(id) + "/" + step;
+}
+
+function cookTargetFromHash() {
+  var match = /^#cook\/([^/]+)(?:\/([^/]+))?$/.exec(window.location.hash);
+  if (!match) {
+    return null;
+  }
+  return {
+    id: decodeURIComponent(match[1]),
+    step: match[2] ? decodeURIComponent(match[2]) : "1"
+  };
+}
+
+// True when two hashes name the same address, even if one is encoded.
+function hashesMatch(a, b) {
+  if (a === b) {
+    return true;
+  }
+  try {
+    return decodeURIComponent(a) === decodeURIComponent(b);
+  } catch (error) {
+    return false;
+  }
+}
+
+// The address step is 1-based. Anything that is not a whole number
+// lands on step 1. A number past the end lands on the last step.
+function clampedStep(raw, count) {
+  var text = String(raw);
+  var n;
+  if (!/^[0-9]+$/.test(text)) {
+    return 1;
+  }
+  n = parseInt(text, 10);
+  if (n < 1 || count < 1) {
+    return 1;
+  }
+  if (n > count) {
+    return count;
+  }
+  return n;
+}
+
 // "#list" is the grocery list. "#recipe/5" is one recipe.
-// Anything else, including no hash at all, is the home screen.
+// "#cook/5/2" is cooking. Anything else, including no hash, is home.
 function screenFromHash() {
   if (window.location.hash === "#list") {
     return "list";
+  }
+  if (cookTargetFromHash()) {
+    return "cook";
   }
   if (recipeIdFromHash()) {
     return "recipe";
@@ -565,6 +654,7 @@ function showFromHash() {
   var home = document.getElementById("home");
   var detail = document.getElementById("detail");
   var listScreen = document.getElementById("grocery");
+  var cook = document.getElementById("cook");
   var next = screenFromHash();
 
   // Opening a screen is a fresh visit. The update question and the
@@ -579,11 +669,22 @@ function showFromHash() {
     listScrollY = window.scrollY;
   }
 
+  // The bottom bar and the wake lock follow the screen, before we draw.
+  syncCookingChrome(next);
+
+  // Home and the grocery list forget the serving count. The next open
+  // of a recipe starts from the number written in that recipe.
+  if (next !== "recipe" && next !== "cook") {
+    servingsForId = "";
+  }
+
   if (next === "home") {
     var y = listScrollY;
     detail.hidden = true;
     detail.innerHTML = "";
     listScreen.hidden = true;
+    cook.hidden = true;
+    cook.innerHTML = "";
     home.hidden = false;
     document.title = "Recipes";
     updateNav();
@@ -595,6 +696,8 @@ function showFromHash() {
     home.hidden = true;
     detail.hidden = true;
     detail.innerHTML = "";
+    cook.hidden = true;
+    cook.innerHTML = "";
     listScreen.hidden = false;
     document.title = "Grocery list";
     renderGrocery();
@@ -602,8 +705,21 @@ function showFromHash() {
     return;
   }
 
+  if (next === "cook") {
+    home.hidden = true;
+    detail.hidden = true;
+    detail.innerHTML = "";
+    listScreen.hidden = true;
+    cook.hidden = false;
+    updateNav();
+    drawCook();
+    return;
+  }
+
   home.hidden = true;
   listScreen.hidden = true;
+  cook.hidden = true;
+  cook.innerHTML = "";
   detail.hidden = false;
   window.scrollTo(0, 0);
   updateNav();
@@ -611,21 +727,32 @@ function showFromHash() {
   var recipe = findRecipe(recipeIdFromHash());
   if (!recipe) {
     chosenServings = 0;
+    servingsForId = "";
     detail.innerHTML = missingRecipeHtml();
     document.title = "Recipe not found";
     return;
   }
 
-  // Every open starts at the recipe's own servings. A count chosen last
-  // time is forgotten on purpose: scaling is only for this look at the page.
-  chosenServings = recipe.servings;
-  if (chosenServings < MIN_SERVINGS) {
-    chosenServings = MIN_SERVINGS;
-  }
-  if (chosenServings > MAX_SERVINGS) {
-    chosenServings = MAX_SERVINGS;
-  }
+  adoptServings(recipe);
   drawDetail(recipe);
+}
+
+// Keep the count already on screen when it belongs to this recipe.
+// Otherwise start from the number written in the recipe, clamped to 1..24.
+function adoptServings(recipe) {
+  var count;
+  if (String(servingsForId) === String(recipe.id)) {
+    return;
+  }
+  count = Number(recipe.servings);
+  if (!count || count < MIN_SERVINGS) {
+    count = MIN_SERVINGS;
+  }
+  if (count > MAX_SERVINGS) {
+    count = MAX_SERVINGS;
+  }
+  chosenServings = count;
+  servingsForId = String(recipe.id);
 }
 
 // Redraw the open recipe at chosenServings. Reads the recipe, does not write it.
@@ -1070,6 +1197,10 @@ function updateNav() {
   if (screenFromHash() === "list") {
     listTab.setAttribute("aria-current", "page");
     recipesTab.removeAttribute("aria-current");
+  } else if (screenFromHash() === "cook") {
+    // Cooking is neither tab. The bar is hidden, and neither one is current.
+    recipesTab.removeAttribute("aria-current");
+    listTab.removeAttribute("aria-current");
   } else {
     recipesTab.setAttribute("aria-current", "page");
     listTab.removeAttribute("aria-current");
@@ -1455,6 +1586,432 @@ function onGroceryClick(event) {
   }
 }
 
+// --- Cooking mode --------------------------------------------------------
+//
+// One step on screen. The address is #cook/<id>/<step>, step starting at 1,
+// so the phone Back button and a reload return to the same step.
+// Back / Next (and a sideways swipe) only change that address. Done and
+// Exit go back to #recipe/<id>.
+//
+// The ingredients panel uses the same amount text as the recipe screen,
+// at the serving count already chosen there.
+
+function wakeLockSupported() {
+  try {
+    return !!(navigator.wakeLock && typeof navigator.wakeLock.request === "function");
+  } catch (error) {
+    return false;
+  }
+}
+
+function releaseSentinel(sentinel) {
+  var done;
+  if (!sentinel) {
+    return;
+  }
+  try {
+    if (sentinel.released) {
+      return;
+    }
+    done = sentinel.release();
+  } catch (error) {
+    return;
+  }
+  if (done && typeof done.catch === "function") {
+    done.catch(function () {
+      // Already released, or the browser refused. Nothing to show.
+    });
+  }
+}
+
+// Ask the phone to keep the screen on. Any failure is ignored: cooking
+// still works, the screen may just dim.
+function requestWakeLock() {
+  var ticket;
+  var request;
+
+  if (!wakeLockSupported()) {
+    updateWakeNote();
+    return;
+  }
+  if (wakeLock && !wakeLock.released) {
+    updateWakeNote();
+    return;
+  }
+  if (document.visibilityState !== "visible") {
+    return;
+  }
+
+  ticket = wakeRequest + 1;
+  wakeRequest = ticket;
+
+  try {
+    request = navigator.wakeLock.request("screen");
+  } catch (error) {
+    return;
+  }
+
+  Promise.resolve(request).then(function (sentinel) {
+    if (!sentinel || ticket !== wakeRequest || screenFromHash() !== "cook") {
+      releaseSentinel(sentinel);
+      return;
+    }
+    wakeLock = sentinel;
+    try {
+      sentinel.addEventListener("release", function () {
+        if (wakeLock === sentinel) {
+          wakeLock = null;
+          updateWakeNote();
+        }
+      });
+    } catch (error) {
+      // The lock is still held. We just will not hear when it drops.
+    }
+    updateWakeNote();
+  }).catch(function () {
+    // Hidden tab, a denied request, or a browser that only looks supported.
+  });
+}
+
+function releaseWakeLock() {
+  var current = wakeLock;
+  wakeRequest = wakeRequest + 1;
+  wakeLock = null;
+  releaseSentinel(current);
+  updateWakeNote();
+}
+
+// "Screen stays on" while the lock is held. If this browser has no wake
+// lock at all, say so in small type. A failed request stays quiet.
+function updateWakeNote() {
+  var note = document.getElementById("cook-wake");
+  var text = "";
+  var on = false;
+
+  if (!note) {
+    return;
+  }
+
+  if (!wakeLockSupported()) {
+    text = "Screen may dim on this browser";
+  } else if (wakeLock && !wakeLock.released) {
+    text = "Screen stays on";
+    on = true;
+  }
+
+  note.textContent = text;
+  note.hidden = text === "";
+  note.className = on ? "cook-wake is-on" : "cook-wake";
+}
+
+// The browser drops a wake lock when the page is hidden (lock the phone,
+// switch apps). Ask again when this page is visible and we are still cooking.
+function onVisibilityChange() {
+  if (document.visibilityState !== "visible") {
+    return;
+  }
+  if (screenFromHash() !== "cook") {
+    return;
+  }
+  if (wakeLock && wakeLock.released) {
+    wakeLock = null;
+  }
+  requestWakeLock();
+}
+
+// Hide the Recipes / Grocery list bar while cooking, and hold the wake
+// lock only on that screen.
+function syncCookingChrome(next) {
+  var cooking = next === "cook";
+  document.body.classList.toggle("is-cooking", cooking);
+  if (cooking) {
+    requestWakeLock();
+    return;
+  }
+  releaseWakeLock();
+  cookIngredientsOpen = false;
+  cookIngredientsFor = "";
+  cookSwipe = null;
+}
+
+function cookTopHtml(title, exitHref) {
+  return (
+    "<div class=\"cook-top\">" +
+      "<p class=\"cook-title\">" + escapeHtml(title) + "</p>" +
+      "<a class=\"cook-exit\" href=\"" + exitHref + "\">Exit</a>" +
+    "</div>" +
+    "<p class=\"cook-wake\" id=\"cook-wake\" role=\"status\" hidden></p>"
+  );
+}
+
+function cookNavHtml(recipe, step, count) {
+  var back;
+  var next;
+
+  if (step <= 1) {
+    back = "<button type=\"button\" class=\"cook-back\" id=\"cook-back\" disabled>Back</button>";
+  } else {
+    back = "<a class=\"cook-back\" id=\"cook-back\" href=\"" + cookHref(recipe.id, step - 1) + "\">Back</a>";
+  }
+
+  if (step >= count) {
+    next = "<a class=\"cook-next\" id=\"cook-next\" href=\"" + recipeHref(recipe.id) + "\">Done</a>";
+  } else {
+    next = "<a class=\"cook-next\" id=\"cook-next\" href=\"" + cookHref(recipe.id, step + 1) + "\">Next</a>";
+  }
+
+  return "<nav class=\"cook-nav\" aria-label=\"Steps\">" + back + next + "</nav>";
+}
+
+// Same rows as the recipe screen, at the serving count on screen.
+// ingredientHtml / amountText do the formatting. This only lists them.
+function cookIngredientsHtml(recipe) {
+  var ingredients = recipe.ingredients || [];
+  var scale;
+  var list = "";
+  var open;
+  var i;
+
+  if (!ingredients.length) {
+    return "";
+  }
+  if (String(cookIngredientsFor) !== String(recipe.id)) {
+    cookIngredientsOpen = false;
+    cookIngredientsFor = String(recipe.id);
+  }
+
+  scale = scaleFor(recipe, chosenServings);
+  for (i = 0; i < ingredients.length; i++) {
+    list += ingredientHtml(ingredients[i], scale);
+  }
+  open = cookIngredientsOpen ? " open" : "";
+
+  return (
+    "<details class=\"cook-ingredients\" id=\"cook-ingredients\"" + open + ">" +
+      "<summary>Ingredients <span class=\"cook-servings\">" +
+        escapeHtml(servingsPhrase(chosenServings)) +
+      "</span></summary>" +
+      "<ul class=\"ingredients\">" + list + "</ul>" +
+    "</details>"
+  );
+}
+
+function cookScreenHtml(recipe, step) {
+  var steps = recipe.steps || [];
+  var text = steps[step - 1] || "";
+  return (
+    cookTopHtml(recipe.title, recipeHref(recipe.id)) +
+    "<p class=\"cook-progress\" id=\"cook-progress\">Step " + step + " of " + steps.length + "</p>" +
+    "<p class=\"cook-step\" id=\"cook-step\" tabindex=\"-1\">" + escapeHtml(text) + "</p>" +
+    cookIngredientsHtml(recipe) +
+    cookNavHtml(recipe, step, steps.length)
+  );
+}
+
+function cookEmptyHtml(recipe) {
+  return (
+    cookTopHtml(recipe.title, recipeHref(recipe.id)) +
+    "<p class=\"cook-step\" id=\"cook-step\" tabindex=\"-1\">This recipe has no steps.</p>"
+  );
+}
+
+function cookMissingHtml() {
+  return (
+    cookTopHtml("Cooking", "#") +
+    "<p class=\"cook-step\" id=\"cook-step\" tabindex=\"-1\">That recipe is not saved on this phone.</p>"
+  );
+}
+
+function drawCook() {
+  var cook = document.getElementById("cook");
+  var target = cookTargetFromHash();
+  var recipe = target ? findRecipe(target.id) : null;
+  var existingPanel = document.getElementById("cook-ingredients");
+  var steps;
+  var step;
+  var canonical;
+  var stepEl;
+
+  // Remember an open ingredients list before the screen is redrawn.
+  if (existingPanel) {
+    cookIngredientsOpen = !!existingPanel.open;
+  }
+
+  if (!recipe) {
+    cook.innerHTML = cookMissingHtml();
+    document.title = "Recipe not found";
+    updateWakeNote();
+    window.scrollTo(0, 0);
+    return;
+  }
+
+  adoptServings(recipe);
+  steps = recipe.steps || [];
+
+  if (!steps.length) {
+    cook.innerHTML = cookEmptyHtml(recipe);
+    document.title = recipe.title;
+    updateWakeNote();
+    window.scrollTo(0, 0);
+    return;
+  }
+
+  step = clampedStep(target.step, steps.length);
+  canonical = cookHref(recipe.id, step);
+  // A bad step number in the address is rewritten without a new history
+  // entry, so Back does not return to the bad address.
+  if (!hashesMatch(window.location.hash, canonical)) {
+    history.replaceState(null, "", canonical);
+  }
+
+  cook.innerHTML = cookScreenHtml(recipe, step);
+  document.title = recipe.title + " — Step " + step + " of " + steps.length;
+  updateWakeNote();
+  window.scrollTo(0, 0);
+
+  stepEl = document.getElementById("cook-step");
+  if (stepEl && stepEl.focus) {
+    // Keep Exit and the title on screen. Focusing would otherwise scroll
+    // the big step to the middle and hide the close button.
+    try {
+      stepEl.focus({ preventScroll: true });
+    } catch (error) {
+      stepEl.focus();
+    }
+  }
+}
+
+// delta is +1 for the next step and -1 for the previous one.
+// On the last step, moving forward returns to the recipe (the Done button).
+function shiftCookStep(delta) {
+  var target = cookTargetFromHash();
+  var recipe;
+  var steps;
+  var step;
+  var next;
+
+  if (!target) {
+    return;
+  }
+  recipe = findRecipe(target.id);
+  if (!recipe) {
+    return;
+  }
+  steps = recipe.steps || [];
+  if (!steps.length) {
+    return;
+  }
+  step = clampedStep(target.step, steps.length);
+  next = step + delta;
+  if (next < 1) {
+    return;
+  }
+  if (next > steps.length) {
+    window.location.hash = recipeHref(recipe.id);
+    return;
+  }
+  window.location.hash = cookHref(recipe.id, next);
+}
+
+// Buttons and links handle their own taps. A swipe that starts on one of
+// them should not also change the step.
+function isCookControl(node) {
+  var tag;
+  while (node && node !== document) {
+    tag = node.tagName;
+    if (tag === "A" || tag === "BUTTON" || tag === "SUMMARY" || tag === "INPUT" || tag === "TEXTAREA" || tag === "LABEL") {
+      return true;
+    }
+    node = node.parentNode;
+  }
+  return false;
+}
+
+function onCookPointerDown(event) {
+  if (screenFromHash() !== "cook") {
+    return;
+  }
+  if (event.pointerType === "mouse" && event.button !== 0) {
+    return;
+  }
+  if (cookSwipe) {
+    return;
+  }
+  if (isCookControl(event.target)) {
+    return;
+  }
+  cookSwipe = {
+    id: event.pointerId,
+    x: event.clientX,
+    y: event.clientY
+  };
+  if (event.currentTarget.setPointerCapture) {
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch (error) {
+      // The pointer can end before we capture it. Back and Next still work.
+    }
+  }
+}
+
+function onCookPointerMove(event) {
+  var dx;
+  var dy;
+  if (!cookSwipe || event.pointerId !== cookSwipe.id) {
+    return;
+  }
+  dx = event.clientX - cookSwipe.x;
+  dy = event.clientY - cookSwipe.y;
+  // Once the finger is clearly moving sideways, don't let the page scroll
+  // sideways or start a text selection.
+  if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) {
+    event.preventDefault();
+  }
+}
+
+function onCookPointerUp(event) {
+  var swipe = cookSwipe;
+  var dx;
+  var dy;
+
+  if (!swipe || event.pointerId !== swipe.id) {
+    return;
+  }
+  cookSwipe = null;
+  dx = event.clientX - swipe.x;
+  dy = event.clientY - swipe.y;
+
+  // A short move, or a mostly vertical one, is a scroll, not a new step.
+  // Moving toward the left turns to the next step.
+  if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) {
+    return;
+  }
+  if (dx < 0) {
+    shiftCookStep(1);
+  } else {
+    shiftCookStep(-1);
+  }
+}
+
+function onCookPointerCancel(event) {
+  if (cookSwipe && event.pointerId === cookSwipe.id) {
+    cookSwipe = null;
+  }
+}
+
+function onCookToggle(event) {
+  var panel = event.target;
+  if (!panel || panel.id !== "cook-ingredients") {
+    return;
+  }
+  // Replacing the panel removes the old one, which can fire toggle.
+  // That removal is not the cook closing the list.
+  if (!panel.isConnected) {
+    return;
+  }
+  cookIngredientsOpen = !!panel.open;
+}
+
 // --- Start ---------------------------------------------------------------
 
 // The script tag is at the bottom of index.html, so the elements exist.
@@ -1467,17 +2024,31 @@ async function start() {
 
   window.addEventListener("hashchange", function () {
     // Home and the grocery list work even if the recipe file failed to
-    // load. A recipe screen waits until the recipes are ready, so we
-    // don't flash "Recipe not found" during that load.
-    if (ready || screenFromHash() !== "recipe") {
+    // load. A recipe or cooking screen waits until the recipes are ready,
+    // so we don't flash "Recipe not found" during that load.
+    var screen = screenFromHash();
+    if (ready || (screen !== "recipe" && screen !== "cook")) {
       showFromHash();
     }
   });
+
+  document.addEventListener("visibilitychange", onVisibilityChange);
 
   // One listener for the life of the page. The buttons are redrawn each
   // time the count changes, and this still hears the taps.
   document.getElementById("detail").addEventListener("click", onDetailClick);
   document.getElementById("grocery").addEventListener("click", onGroceryClick);
+
+  // Swipes are heard on the cooking section, which stays in the page
+  // while its contents are redrawn for each step. pointermove is not
+  // passive so a sideways swipe can cancel scrolling.
+  var cookEl = document.getElementById("cook");
+  cookEl.addEventListener("pointerdown", onCookPointerDown);
+  cookEl.addEventListener("pointermove", onCookPointerMove, { passive: false });
+  cookEl.addEventListener("pointerup", onCookPointerUp);
+  cookEl.addEventListener("pointercancel", onCookPointerCancel);
+  // toggle does not bubble. The capture listener still hears it.
+  cookEl.addEventListener("toggle", onCookToggle, true);
 
   // Tapping Recipes while you are already there should not jump to the top.
   document.getElementById("tab-recipes").addEventListener("click", function (event) {

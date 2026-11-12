@@ -14,15 +14,16 @@ https://themaverickmando-source.github.io/recipe-app/
 - **−** and **+** change the serving count. Ingredient amounts on the screen change with it. The saved recipe does not.
 - **Add to grocery list** saves those amounts. If that recipe is already on the list, the app asks before it updates the old line.
 - The bottom bar opens the **Grocery list** (the address becomes `#list`). The same ingredient from two recipes becomes one line when the name and the unit match. Tap a line to check it off.
-- The first visit copies `data/recipes.json` onto the phone (the browser's localStorage). The grocery list is saved in its own note, separate from the recipes. Both stay on the phone after a reload.
+- **Start cooking** opens one step at a time. The address becomes `#cook/` plus the recipe id and the step number (`#cook/5/2` is step 2). **Back** and **Next** sit at the bottom, and a sideways swipe does the same thing. On the last step, **Next** says **Done** and returns to the recipe. **Exit** does too. The screen tries to stay on while that page is open. A collapsible **Ingredients** list uses the serving count you picked on the recipe.
+- The first visit copies `data/recipes.json` onto the phone (the browser's localStorage). The grocery list is saved in its own note, separate from the recipes. Both stay on the phone after a reload. Cooking does not write either note.
 
 Search ignores capitals and accents, so `aioli` finds `aïoli`.
 
 ## Files
 
-- `index.html` — the page skeleton: search box, recipe list, recipe screen, grocery list, and the bottom bar.
+- `index.html` — the page skeleton: search box, recipe list, recipe screen, cooking screen, grocery list, and the bottom bar.
 - `styles.css` — colors, type size, and spacing, aimed at a phone screen.
-- `app.js` — loading, search, the recipe screen, and the grocery list. The comments explain the flow.
+- `app.js` — loading, search, the recipe screen, cooking mode, and the grocery list. The comments explain the flow.
 - `data/recipes.json` — the starting recipes.
 - `.nojekyll` — an empty file that tells GitHub Pages to publish these files as they are.
 

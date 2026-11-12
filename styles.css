@@ -377,6 +377,7 @@ h2 {
 
 a:focus-visible,
 button:focus-visible,
+summary:focus-visible,
 #search:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
@@ -436,8 +437,9 @@ button:focus-visible,
   margin-top: 1rem;
 }
 
-/* The big Add / Update button. Same amber as Back to recipes. */
-.add-grocery {
+/* The big Add / Update button, and Start cooking. Same amber as Back to recipes. */
+.add-grocery,
+a.cook-start {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -452,17 +454,26 @@ button:focus-visible,
   font: inherit;
   font-size: 1.2rem;
   font-weight: 700;
+  line-height: 1.2;
   text-align: center;
+  text-decoration: none;
   touch-action: manipulation;
   appearance: none;
   -webkit-appearance: none;
+}
+
+/* Sits under the serving stepper, so it is on screen with the count
+   you are about to cook for. */
+a.cook-start {
+  margin-top: 1.15rem;
 }
 
 .grocery-controls .add-grocery:first-child {
   margin-top: 0;
 }
 
-.add-grocery:active {
+.add-grocery:active,
+a.cook-start:active {
   background: var(--accent-pressed);
   border-color: var(--accent-pressed);
 }
@@ -650,6 +661,238 @@ button:focus-visible,
   margin-top: 0;
 }
 
+/* --- Cooking -----------------------------------------------------------
+   One step fills the screen. The type is large enough to read at arm's
+   length, and Back / Next are pinned to the bottom edge. The tab bar
+   hides for this screen (body.is-cooking) so those two buttons are the
+   thing at the bottom. 1.875rem is 30px when the browser's base size
+   is 16px. */
+
+.cook-screen {
+  width: 100%;
+  max-width: 40rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0.85rem 1rem calc(6.25rem + env(safe-area-inset-bottom, 0px));
+  /* Vertical scroll stays. A sideways swipe changes the step instead of
+     dragging the page sideways. */
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
+}
+
+body.is-cooking {
+  padding-bottom: 0;
+}
+
+body.is-cooking .tabbar {
+  display: none;
+}
+
+.cook-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cook-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.cook-exit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0.45rem 0.9rem;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--field);
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.cook-exit:active {
+  background: var(--card-pressed);
+}
+
+/* Small status under the title. The step text below is the thing you read. */
+.cook-wake {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cook-wake.is-on {
+  color: var(--accent);
+}
+
+.cook-progress {
+  margin: 0.9rem 0 0.55rem;
+  color: var(--accent);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cook-step {
+  margin: 0;
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.cook-step:focus {
+  outline: none;
+}
+
+.cook-step:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.cook-ingredients {
+  margin-top: 1.35rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+}
+
+.cook-ingredients summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 56px;
+  padding: 0.75rem 1rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.3;
+  list-style: none;
+  touch-action: manipulation;
+}
+
+.cook-ingredients summary::-webkit-details-marker {
+  display: none;
+}
+
+.cook-ingredients summary::marker {
+  content: "";
+}
+
+.cook-servings {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* A small chevron, amber like the other markers. Points down when open. */
+.cook-ingredients summary::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: -0.2rem;
+  border-right: 3px solid var(--accent);
+  border-bottom: 3px solid var(--accent);
+  transform: rotate(45deg);
+}
+
+.cook-ingredients[open] summary::after {
+  margin-top: 0.25rem;
+  transform: rotate(-135deg);
+}
+
+.cook-ingredients .ingredients {
+  padding: 0 1rem 0.35rem;
+}
+
+.cook-ingredients .ingredients li:last-child {
+  border-bottom: none;
+}
+
+/* Back and Next, each half of the bottom edge. Next is the amber action.
+   Back is quieter until you need it, and dim when it is disabled. */
+.cook-nav {
+  position: fixed;
+  z-index: 6;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  background: var(--card);
+  border-top: 1px solid var(--line);
+}
+
+a.cook-back,
+a.cook-next,
+button.cook-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 56px;
+  margin: 0;
+  padding: 0.75rem 0.5rem;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  touch-action: manipulation;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+a.cook-back,
+button.cook-back {
+  border: 2px solid var(--line);
+  background: var(--field);
+  color: var(--ink);
+}
+
+a.cook-back:active {
+  background: var(--card-pressed);
+}
+
+button.cook-back:disabled {
+  border-color: var(--line);
+  background: var(--field);
+  color: var(--muted);
+}
+
+a.cook-next {
+  border: 2px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+a.cook-next:active {
+  border-color: var(--accent-pressed);
+  background: var(--accent-pressed);
+}
+
 /* Recipes and Grocery list. Fixed to the bottom of the phone screen. */
 .tabbar {
   position: fixed;
@@ -716,7 +959,8 @@ button:focus-visible,
 
   .list-panel,
   .detail-panel,
-  .grocery-panel {
+  .grocery-panel,
+  .cook-screen {
     padding-top: 1.25rem;
   }
 }

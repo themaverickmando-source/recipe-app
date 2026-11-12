@@ -5,11 +5,16 @@
   This file is the skeleton of the page. It does not contain the recipes
   themselves. app.js reads those and fills in the list and the recipe screen.
   On a recipe, app.js also draws the − and + buttons that scale the amounts,
-  and the button that adds those amounts to the grocery list.
+  the button that adds those amounts to the grocery list, and Start cooking.
+
+  Start cooking opens one step at a time. That address looks like
+  #cook/3/2 (recipe 3, step 2), so the phone Back button and a reload
+  stay on the step you were reading.
 
   The bottom bar switches between the recipe cards and the grocery list.
-  The grocery list's address ends with #list, so the phone Back button
-  can return to the recipes.
+  It hides while you are cooking, so Back and Next can sit on the bottom
+  edge. The grocery list's address ends with #list, so the phone Back
+  button can return to the recipes.
 
   styles.css, app.js, and data/recipes.json are linked with relative paths
   (no leading slash). That keeps the site working when it is published at
@@ -79,6 +84,13 @@
       <p id="grocery-notice" class="notice" role="status" hidden></p>
       <div id="grocery-body"></div>
     </section>
+
+    <!--
+      Cooking screen. Empty until Start cooking, or until the address is
+      #cook/<id>/<step>. app.js fills in one step, the ingredients, and
+      the Back / Next bar.
+    -->
+    <section id="cook" class="cook-screen" aria-label="Cooking" hidden></section>
   </div>
 
   <!--

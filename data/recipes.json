@@ -1,0 +1,537 @@
+[
+  {
+    "id": 1,
+    "title": "Pork meatballs with chipotle aïoli",
+    "source": "Green Chef recipe card p.13",
+    "servings": 2,
+    "cuisine": "Mexican-inspired",
+    "protein": "pork",
+    "total_minutes": 30,
+    "tags": [
+      "weeknight",
+      "gluten-free"
+    ],
+    "ingredients": [
+      {
+        "name": "yellow onion",
+        "amount": 1,
+        "unit": "whole",
+        "prep": "diced"
+      },
+      {
+        "name": "roma tomato",
+        "amount": 1,
+        "unit": "whole",
+        "prep": "diced"
+      },
+      {
+        "name": "cabbage and carrot mix",
+        "amount": 5.25,
+        "unit": "oz",
+        "prep": "shredded"
+      },
+      {
+        "name": "lime",
+        "amount": 1,
+        "unit": "whole",
+        "prep": "zested, quartered"
+      },
+      {
+        "name": "ground pork",
+        "amount": 10,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "paprika-parsley spice blend",
+        "amount": 2,
+        "unit": "tsp",
+        "prep": ""
+      },
+      {
+        "name": "chipotle aioli",
+        "amount": 2.75,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "pepitas",
+        "amount": 0.5,
+        "unit": "oz",
+        "prep": "toasted"
+      },
+      {
+        "name": "cauliflower rice",
+        "amount": 9,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "cumin coriander oregano blend",
+        "amount": 1.25,
+        "unit": "tbsp",
+        "prep": ""
+      }
+    ],
+    "steps": [
+      "Prep. Preheat oven to 400°F. Halve onion; save one half for another use and small dice the other (1/4 inch). Small dice tomato (1/4 inch). Roughly chop cabbage and carrots if needed. Zest the whole lime into a medium bowl, then quarter the lime.",
+      "Season and form meatballs. In a second bowl, mix pork, spice blend, half the diced onion, about 1 tbsp chipotle aïoli, 1/4 tsp salt and a pinch of pepper. Form 8 to 10 meatballs, about 1 inch.",
+      "Toast pepitas in a dry medium sauté pan over medium heat, 2 to 3 min, shaking often. Set aside; keep the pan.",
+      "Cook meatballs on a lightly oiled foil-lined baking sheet at 400°F for 16 to 18 min, until 160°F inside.",
+      "Cauliflower rice. In the same pan, heat a drizzle of oil over medium. Add cauliflower and the remaining onion, the cumin-coriander-oregano blend, 1/4 tsp salt and a pinch of pepper. Cook 4 to 5 min until tender.",
+      "Slaw. Add tomato and cabbage-carrot mix to the bowl with lime zest. Drizzle with olive oil, squeeze in 1 to 2 lime wedges, toss, season.",
+      "Plate. Cauliflower rice, meatballs, drizzle with remaining aïoli, slaw on the side, pepitas on top, remaining lime wedges."
+    ]
+  },
+  {
+    "id": 2,
+    "title": "Chicken and tomato couscous skillet",
+    "source": "Green Chef recipe card p.05",
+    "servings": 2,
+    "cuisine": "Mediterranean",
+    "protein": "chicken",
+    "total_minutes": 35,
+    "tags": [
+      "weeknight",
+      "one-pan"
+    ],
+    "ingredients": [
+      {
+        "name": "green olives",
+        "amount": 0.5,
+        "unit": "oz",
+        "prep": "sliced"
+      },
+      {
+        "name": "lemon",
+        "amount": 1,
+        "unit": "whole",
+        "prep": "quartered"
+      },
+      {
+        "name": "chicken cutlets",
+        "amount": 6,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "mediterranean spice blend",
+        "amount": 1,
+        "unit": "tbsp",
+        "prep": ""
+      },
+      {
+        "name": "yellow onion",
+        "amount": 2,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "pearl couscous",
+        "amount": 0.5,
+        "unit": "cup",
+        "prep": "toasted"
+      },
+      {
+        "name": "tomato cream sauce",
+        "amount": 3.75,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "chicken stock concentrate",
+        "amount": 1,
+        "unit": "whole",
+        "prep": ""
+      },
+      {
+        "name": "sliced almonds",
+        "amount": 0.5,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "tzatziki",
+        "amount": 2,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "water",
+        "amount": 1.25,
+        "unit": "cup",
+        "prep": ""
+      }
+    ],
+    "steps": [
+      "Prep. Thinly slice olives into rounds. Quarter lemon.",
+      "Cook chicken. Pat cutlets dry; season with spice blend, salt and pepper. Heat 1 1/2 tbsp oil in a medium sauté pan over medium-high. Cook chicken 3 to 5 min per side until browned (it finishes later). Move to a plate; keep the pan.",
+      "Start couscous. Drizzle of oil in the same pan over medium. Add onions, salt and pepper; cook 4 to 5 min until softened. Add couscous; cook 1 to 2 min, stirring often.",
+      "Finish couscous. Stir in tomato cream sauce, stock concentrate and 1 1/4 cups water. Add chicken back, bring to a simmer, and cook 10 to 12 min until chicken hits 165°F and couscous is tender, shaking the pan now and then.",
+      "Plate. Top with olives and almonds, dollop tzatziki, squeeze lemon over. Serve with remaining lemon wedges."
+    ]
+  },
+  {
+    "id": 3,
+    "title": "Creamy paprika shrimp",
+    "source": "Green Chef recipe card p.40",
+    "servings": 2,
+    "cuisine": "Spanish-inspired",
+    "protein": "shrimp",
+    "total_minutes": 25,
+    "tags": [
+      "weeknight",
+      "gluten-free",
+      "seafood"
+    ],
+    "ingredients": [
+      {
+        "name": "green beans",
+        "amount": 6,
+        "unit": "oz",
+        "prep": "trimmed"
+      },
+      {
+        "name": "pecans",
+        "amount": 1,
+        "unit": "oz",
+        "prep": "chopped"
+      },
+      {
+        "name": "shrimp",
+        "amount": 10,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "smoked paprika",
+        "amount": 1,
+        "unit": "tsp",
+        "prep": ""
+      },
+      {
+        "name": "chorizo-spiced tomato sauce",
+        "amount": 1.25,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "cream cheese",
+        "amount": 2,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "cabbage",
+        "amount": 3.5,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "basil vinaigrette",
+        "amount": 1,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "butter",
+        "amount": 1,
+        "unit": "tbsp",
+        "prep": ""
+      }
+    ],
+    "steps": [
+      "Prep. Trim green beans. Roughly chop pecans if needed.",
+      "Season shrimp. Rinse and pat dry. In a bowl, toss with smoked paprika, 1/4 tsp salt, a pinch of pepper and 2 tsp olive oil.",
+      "Green beans. Heat 1 tbsp cooking oil in a medium sauté pan over medium. Add beans, 1/4 tsp salt and pepper; cook about 2 min until they start to soften. Carefully add 1/4 cup water; cook 3 to 5 min until it's cooked off and beans start to brown. Add pecans and 1 tbsp butter; cook 2 to 3 min until beans are tender and pecans toasted. Remove from heat.",
+      "Shrimp. Heat 1 tbsp cooking oil in a large sauté pan over medium. Cook shrimp 2 to 3 min until mostly cooked. Add tomato sauce, cream cheese and 2 tbsp water; stir until the cream cheese melts. Simmer 4 to 5 min until thick and creamy and shrimp hit 145°F.",
+      "Slaw. Toss cabbage with basil vinaigrette to taste; season with salt and pepper.",
+      "Plate. Shrimp with green beans and slaw on the side."
+    ]
+  },
+  {
+    "id": 4,
+    "title": "Fajita turkey bowls with polenta",
+    "source": "Green Chef recipe card p.16",
+    "servings": 2,
+    "cuisine": "Mexican-inspired",
+    "protein": "turkey",
+    "total_minutes": 30,
+    "tags": [
+      "weeknight",
+      "gluten-free"
+    ],
+    "ingredients": [
+      {
+        "name": "garlic",
+        "amount": 0.25,
+        "unit": "oz",
+        "prep": "minced"
+      },
+      {
+        "name": "green bell pepper",
+        "amount": 1,
+        "unit": "whole",
+        "prep": "diced"
+      },
+      {
+        "name": "scallions",
+        "amount": 2,
+        "unit": "whole",
+        "prep": "sliced"
+      },
+      {
+        "name": "yellow onion",
+        "amount": 2.5,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "ground turkey",
+        "amount": 10,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "chicken stock concentrate",
+        "amount": 2,
+        "unit": "whole",
+        "prep": ""
+      },
+      {
+        "name": "fajita spice blend",
+        "amount": 1,
+        "unit": "tbsp",
+        "prep": ""
+      },
+      {
+        "name": "adobo tomatoes",
+        "amount": 2.75,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "precooked polenta",
+        "amount": 8.5,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "pepitas",
+        "amount": 0.5,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "cotija cheese",
+        "amount": 0.75,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "chimichurri",
+        "amount": 2,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "butter",
+        "amount": 1,
+        "unit": "tbsp",
+        "prep": ""
+      }
+    ],
+    "steps": [
+      "Prep. Mince garlic. Dice bell pepper (1/4 inch). Thinly slice scallions, whites and greens separate.",
+      "Start turkey. Drizzle of oil in a large sauté pan over medium-high. Add garlic, bell pepper, scallion whites and onions; cook 4 to 6 min until pepper softens. Add turkey, stock concentrates and fajita spice; cook 4 to 5 min, breaking it up, until fully cooked (165°F).",
+      "Finish turkey. Stir in adobo tomatoes and 1/4 cup water. Simmer gently 3 to 4 min until reduced.",
+      "Polenta. In a small pot over medium, combine polenta and 1/2 cup water. Mash 30 to 60 sec until mostly smooth. Whisk 2 to 3 min until simmering and thick. Off heat, stir in 1 tbsp butter, season, and cover to keep warm.",
+      "Plate. Polenta topped with turkey, scallion greens, pepitas and cotija, drizzled with chimichurri."
+    ]
+  },
+  {
+    "id": 5,
+    "title": "Baked shrimp fra diavolo",
+    "source": "Galley original",
+    "servings": 2,
+    "cuisine": "Italian",
+    "protein": "shrimp",
+    "total_minutes": 30,
+    "tags": [
+      "weeknight",
+      "seafood",
+      "oven"
+    ],
+    "ingredients": [
+      {
+        "name": "shrimp",
+        "amount": 10,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "canned tomatoes",
+        "amount": 14.5,
+        "unit": "oz",
+        "prep": "crushed"
+      },
+      {
+        "name": "garlic",
+        "amount": 3,
+        "unit": "clove",
+        "prep": "sliced"
+      },
+      {
+        "name": "red pepper flakes",
+        "amount": 0.25,
+        "unit": "tsp",
+        "prep": ""
+      },
+      {
+        "name": "olive oil",
+        "amount": 2,
+        "unit": "tbsp",
+        "prep": ""
+      },
+      {
+        "name": "butter",
+        "amount": 1,
+        "unit": "pat",
+        "prep": ""
+      },
+      {
+        "name": "italian seasoning",
+        "amount": 0.5,
+        "unit": "tsp",
+        "prep": ""
+      },
+      {
+        "name": "parmesan",
+        "amount": null,
+        "unit": "",
+        "prep": ""
+      },
+      {
+        "name": "lemon",
+        "amount": null,
+        "unit": "",
+        "prep": ""
+      },
+      {
+        "name": "parsley",
+        "amount": null,
+        "unit": "",
+        "prep": ""
+      },
+      {
+        "name": "bread or spaghetti",
+        "amount": null,
+        "unit": "",
+        "prep": ""
+      }
+    ],
+    "steps": [
+      "Heat oven to 400°F.",
+      "Warm oil in an oven-safe skillet over medium; cook garlic and pepper flakes 1 min.",
+      "Add tomatoes, Italian seasoning, salt, pepper; simmer 10 min.",
+      "Nestle in shrimp, dot with butter, bake 8 to 10 min until opaque and 145°F.",
+      "Finish with Parmesan, herbs and lemon. Serve with bread or pasta."
+    ]
+  },
+  {
+    "id": 6,
+    "title": "Baked spicy sausage rigatoni",
+    "source": "Chef original (not from a cookbook)",
+    "servings": 6,
+    "cuisine": "Italian",
+    "protein": "pork sausage",
+    "total_minutes": 50,
+    "tags": [
+      "crowd-friendly",
+      "station",
+      "baked pasta"
+    ],
+    "ingredients": [
+      {
+        "name": "italian sausage",
+        "amount": 2,
+        "unit": "lb",
+        "prep": "casings removed"
+      },
+      {
+        "name": "rigatoni",
+        "amount": 1.5,
+        "unit": "lb",
+        "prep": ""
+      },
+      {
+        "name": "crushed tomatoes",
+        "amount": 2,
+        "unit": "28-oz cans",
+        "prep": ""
+      },
+      {
+        "name": "garlic",
+        "amount": 6,
+        "unit": "cloves",
+        "prep": "sliced"
+      },
+      {
+        "name": "onion",
+        "amount": 1,
+        "unit": "medium",
+        "prep": "diced"
+      },
+      {
+        "name": "red pepper flakes",
+        "amount": 0.5,
+        "unit": "tsp",
+        "prep": "to taste"
+      },
+      {
+        "name": "italian seasoning",
+        "amount": 1.5,
+        "unit": "tsp",
+        "prep": ""
+      },
+      {
+        "name": "olive oil",
+        "amount": 2,
+        "unit": "tbsp",
+        "prep": ""
+      },
+      {
+        "name": "butter",
+        "amount": 2,
+        "unit": "tbsp",
+        "prep": ""
+      },
+      {
+        "name": "mozzarella",
+        "amount": 2,
+        "unit": "cups",
+        "prep": "shredded"
+      },
+      {
+        "name": "parmesan",
+        "amount": 1,
+        "unit": "cup",
+        "prep": "grated"
+      },
+      {
+        "name": "basil or parsley",
+        "amount": null,
+        "unit": "",
+        "prep": "to finish"
+      }
+    ],
+    "steps": [
+      "Heat oven to 400°F; boil salted water.",
+      "Brown sausage in oil 8-10 min to 160°F. Add onion 4 min, then garlic and pepper flakes 1 min.",
+      "Add tomatoes and Italian seasoning; simmer 15 min. Stir in butter; taste for salt and heat.",
+      "Cook pasta 2 min short of box time; drain. Toss with sauce and half the Parmesan.",
+      "Spread in a 9x13 plus an 8x8 (or one large roasting pan). Top with mozzarella and remaining Parmesan.",
+      "Bake 15-20 min until bubbling and browned. Finish with herbs."
+    ]
+  }
+]

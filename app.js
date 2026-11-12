@@ -52,6 +52,26 @@ var COOKING_FRACTIONS = [
   [7, 8, "⅞"]
 ];
 
+// Package words, as [singular, plural].
+// Only the last word of a unit is swapped, so "28-oz cans" can read
+// "28-oz can" while the "28-oz" and the saved recipe stay as written.
+// Add another row here to teach the app a new package word.
+var PACKAGE_WORDS = [
+  ["can", "cans"],
+  ["jar", "jars"],
+  ["package", "packages"],
+  ["packet", "packets"],
+  ["box", "boxes"],
+  ["bag", "bags"],
+  ["bottle", "bottles"],
+  ["carton", "cartons"],
+  ["tin", "tins"],
+  ["pouch", "pouches"],
+  ["pack", "packs"],
+  ["container", "containers"],
+  ["tub", "tubs"]
+];
+
 // localStorage is a small notebook the browser keeps for this website,
 // on this phone. GitHub Pages hosts every project on one shared host
 // (themaverickmando-source.github.io), so the key names start with
@@ -117,10 +137,12 @@ function scaleFor(recipe, servings) {
   return servings / base;
 }
 
-// Turn a number into text a cook can read.
+// Turn a number into text a cook can read, and the number that text means.
 // Whole numbers stay whole (2, not 2.0). Values near a kitchen fraction
 // use that glyph, so 1.5 is 1½ and 0.333 is ⅓.
-function formatAmount(value) {
+// number is that same amount (1.5, not the raw 1.499999), so a package
+// word can agree with the digits on screen.
+function roundAmount(value) {
   var thousandths = Math.round(value * 1000);
   if (thousandths < 0) {
     thousandths = 0;
@@ -134,19 +156,21 @@ function formatAmount(value) {
   var bestGlyph = "";
   var bestDenom = 1;
   var bestCarry = 0;
+  var bestFraction = 0;
 
-  function consider(diff, glyph, denom, carry) {
+  function consider(diff, glyph, denom, carry, fraction) {
     // On a tie, keep the simpler fraction (smaller denominator).
     if (diff < bestDiff || (diff === bestDiff && denom < bestDenom)) {
       bestDiff = diff;
       bestGlyph = glyph;
       bestDenom = denom;
       bestCarry = carry;
+      bestFraction = fraction;
     }
   }
 
   // A leftover near 1000 is really the next whole number.
-  consider(1000 - remainder, "", 1, 1);
+  consider(1000 - remainder, "", 1, 1, 0);
 
   var i;
   for (i = 0; i < COOKING_FRACTIONS.length; i++) {
@@ -154,7 +178,7 @@ function formatAmount(value) {
     var denom = COOKING_FRACTIONS[i][1];
     var glyph = COOKING_FRACTIONS[i][2];
     var target = Math.round((1000 * numer) / denom);
-    consider(Math.abs(remainder - target), glyph, denom, 0);
+    consider(Math.abs(remainder - target), glyph, denom, 0, numer / denom);
   }
 
   whole = whole + bestCarry;
@@ -162,15 +186,37 @@ function formatAmount(value) {
   // A speck that would print as 0 still shows the smallest spoon mark,
   // so the ingredient does not disappear.
   if (thousandths > 0 && whole === 0 && bestGlyph === "") {
-    return "⅛";
+    return { text: "⅛", number: 1 / 8 };
   }
+
+  var text;
   if (bestGlyph === "") {
-    return String(whole);
+    text = String(whole);
+  } else if (whole === 0) {
+    text = bestGlyph;
+  } else {
+    text = String(whole) + bestGlyph;
   }
-  if (whole === 0) {
-    return bestGlyph;
+  return { text: text, number: whole + bestFraction };
+}
+
+// One can, or part of one, reads as singular. More than one stays plural.
+// "oz", "tsp", "cups", and "cloves" are not package words, so they are
+// returned unchanged. The stored unit string is never edited.
+function unitForCount(unit, count) {
+  var words = String(unit).split(" ");
+  var last = words[words.length - 1].toLowerCase();
+  var i;
+
+  for (i = 0; i < PACKAGE_WORDS.length; i++) {
+    var singular = PACKAGE_WORDS[i][0];
+    var plural = PACKAGE_WORDS[i][1];
+    if (last === singular || last === plural) {
+      words[words.length - 1] = count > 1 ? plural : singular;
+      return words.join(" ");
+    }
   }
-  return String(whole) + bestGlyph;
+  return unit;
 }
 
 // amount is null for "to taste" items (lemon, parmesan, a handful of herbs).
@@ -179,16 +225,18 @@ function formatAmount(value) {
 // scale multiplies a copy of the amount. ingredient.amount itself is not
 // changed, so the recipe saved on the phone stays as written.
 //
-// The unit is printed exactly as stored. A package size such as "28-oz cans"
-// lives in the unit, and the amount is how many packages. Scaling changes
-// the count (2 becomes 1) and leaves the "28-oz" alone.
+// A package size such as "28-oz cans" lives in the unit, and the amount is
+// how many packages. Scaling changes the count (2 becomes 1) and leaves the
+// "28-oz" alone. The last word follows the count: "1 28-oz can",
+// "½ 28-oz can", "2 28-oz cans".
 function amountText(ingredient, scale) {
   if (ingredient.amount === null || typeof ingredient.amount === "undefined") {
     return "to taste";
   }
-  var text = formatAmount(ingredient.amount * scale);
+  var rounded = roundAmount(ingredient.amount * scale);
+  var text = rounded.text;
   if (ingredient.unit) {
-    text += " " + ingredient.unit;
+    text += " " + unitForCount(ingredient.unit, rounded.number);
   }
   return text;
 }

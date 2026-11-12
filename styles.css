@@ -1,0 +1,292 @@
+/*
+  Look and feel for the recipe book.
+
+  Mobile first: the layout is designed for a phone around 360px wide,
+  held at arm's length in the kitchen. Text is large, contrast is strong,
+  and anything you tap is at least 48px tall.
+
+  Colors are a warm paper background, brown ink, and a terracotta accent.
+*/
+
+:root {
+  --paper: #f4efe6;
+  --card: #fffdf9;
+  --ink: #241c16;
+  --muted: #5e5146;
+  --line: #e7dccb;
+  --accent: #9a3f1d;
+  --accent-dark: #7c3116;
+  --chip: #f8e6d6;
+  --chip-ink: #6f3518;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 1.125rem;
+  line-height: 1.45;
+}
+
+h1,
+h2 {
+  font-family: Georgia, "Palatino Linotype", Palatino, serif;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+/* A centered column. On a phone it is the full screen with 16px of side padding. */
+.panel {
+  width: 100%;
+  max-width: 40rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.hero {
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  padding-top: 1.15rem;
+  padding-bottom: 1.15rem;
+}
+
+.kicker {
+  margin: 0 0 0.2rem;
+  color: var(--accent);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: 2.1rem;
+}
+
+.search-box {
+  margin-top: 1rem;
+}
+
+.search-box label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+/* Big search field. 20px type also stops iPhones from zooming in on focus. */
+#search {
+  width: 100%;
+  min-height: 56px;
+  padding: 0.75rem 1rem;
+  border: 2px solid #e0d2c0;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.25rem;
+}
+
+#search::placeholder {
+  color: #6b5e52;
+}
+
+.count {
+  margin: 0.85rem 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.list-panel {
+  padding-top: 1rem;
+  padding-bottom: 2.5rem;
+}
+
+#list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.loading {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+}
+
+/* The whole card is the tap target, so padding makes it much taller than 48px. */
+.card {
+  display: block;
+  min-height: 48px;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(60, 36, 18, 0.04), 0 8px 18px rgba(60, 36, 18, 0.05);
+}
+
+.card:active {
+  background: #fff3e8;
+}
+
+.card h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.45rem;
+}
+
+.meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tags li {
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--chip-ink);
+  font-size: 1rem;
+}
+
+.empty {
+  margin: 0.75rem 0 0;
+  padding: 1.15rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  font-size: 1.15rem;
+}
+
+.detail-panel {
+  padding-top: 1rem;
+  padding-bottom: 2.75rem;
+}
+
+/* Full-width back control. Easy to hit with a messy finger. */
+.back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 56px;
+  margin: 0 0 1.15rem;
+  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fffdf9;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.back:active {
+  background: var(--accent-dark);
+}
+
+.detail-panel h1 {
+  margin: 0 0 0.45rem;
+  font-size: 2rem;
+}
+
+.source {
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.detail-panel h2 {
+  margin: 1.6rem 0 0.35rem;
+  font-size: 1.5rem;
+}
+
+.ingredients {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ingredients li {
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 1.2rem;
+}
+
+.amount {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Prep notes ("diced", "toasted") sit on their own line under the ingredient. */
+.prep {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.steps {
+  margin: 0.4rem 0 0;
+  padding-left: 1.7rem;
+}
+
+.steps li {
+  margin: 0 0 1rem;
+  padding-left: 0.35rem;
+  font-size: 1.15rem;
+}
+
+.steps li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+a:focus-visible,
+#search:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+#search:focus {
+  border-color: var(--accent);
+}
+
+/* Author styles would otherwise beat the browser's hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
+@media (min-width: 600px) {
+  .hero {
+    padding-top: 1.75rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .list-panel,
+  .detail-panel {
+    padding-top: 1.25rem;
+  }
+}

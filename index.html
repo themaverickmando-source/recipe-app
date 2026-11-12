@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!--
+  Manolo's recipe book, step 1.
+
+  This file is the skeleton of the page. It does not contain the recipes
+  themselves. app.js reads those and fills in the list and the recipe screen.
+
+  styles.css, app.js, and data/recipes.json are linked with relative paths
+  (no leading slash). That keeps the site working when it is published at
+  https://themaverickmando-source.github.io/recipe-app/
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fffdf9">
+  <title>Recipes</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <!--
+      Home screen: the search box and the recipe cards.
+      app.js hides this whole section when a recipe is open.
+    -->
+    <main id="home">
+      <header class="hero">
+        <div class="panel">
+          <p class="kicker">Manolo's kitchen</p>
+          <h1>Recipes</h1>
+
+          <div class="search-box">
+            <label for="search">Search recipes</label>
+            <input
+              id="search"
+              type="search"
+              placeholder="shrimp, aioli, Italian…"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              enterkeyhint="search">
+          </div>
+
+          <p id="count" class="count" aria-live="polite"></p>
+        </div>
+      </header>
+
+      <div class="panel list-panel">
+        <div id="list">
+          <p class="loading">Loading recipes…</p>
+        </div>
+        <p id="empty" class="empty" hidden>No recipes match. Try a different word.</p>
+      </div>
+    </main>
+
+    <!--
+      Recipe screen. Empty until you open a card.
+      The address will look like #recipe/3, and app.js fills this in.
+    -->
+    <article id="detail" class="panel detail-panel" hidden></article>
+  </div>
+
+  <noscript>
+    <p class="empty panel">Turn on JavaScript to see your recipes. The script that runs them is app.js, on this same site.</p>
+  </noscript>
+
+  <script src="app.js"></script>
+</body>
+</html>

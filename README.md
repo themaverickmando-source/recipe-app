@@ -2,7 +2,7 @@
 
 A recipe book that opens in the phone browser. Plain HTML, CSS, and JavaScript. No build step and no frameworks.
 
-Published with GitHub Pages from the `main` branch, root folder:
+Meant to be published with GitHub Pages from the `main` branch, root folder:
 
 https://themaverickmando-source.github.io/recipe-app/
 

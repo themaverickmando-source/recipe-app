@@ -4,7 +4,12 @@
 
   This file is the skeleton of the page. It does not contain the recipes
   themselves. app.js reads those and fills in the list and the recipe screen.
-  On a recipe, app.js also draws the − and + buttons that scale the amounts.
+  On a recipe, app.js also draws the − and + buttons that scale the amounts,
+  and the button that adds those amounts to the grocery list.
+
+  The bottom bar switches between the recipe cards and the grocery list.
+  The grocery list's address ends with #list, so the phone Back button
+  can return to the recipes.
 
   styles.css, app.js, and data/recipes.json are linked with relative paths
   (no leading slash). That keeps the site working when it is published at
@@ -25,7 +30,7 @@
   <div class="wrap">
     <!--
       Home screen: the search box and the recipe cards.
-      app.js hides this whole section when a recipe is open.
+      app.js hides this whole section when a recipe or the grocery list is open.
     -->
     <main id="home">
       <header class="hero">
@@ -62,7 +67,28 @@
       The address will look like #recipe/3, and app.js fills this in.
     -->
     <article id="detail" class="panel detail-panel" hidden></article>
+
+    <!--
+      Grocery list. Empty until app.js draws it.
+      The address will look like #list.
+    -->
+    <section id="grocery" class="panel grocery-panel" hidden>
+      <p class="kicker">Manolo's kitchen</p>
+      <h1>Grocery list</h1>
+      <p id="grocery-summary" class="count"></p>
+      <p id="grocery-notice" class="notice" role="status" hidden></p>
+      <div id="grocery-body"></div>
+    </section>
   </div>
+
+  <!--
+    Always on screen, including on a recipe, so the list is one tap away.
+    Each link only changes the hash. The page does not reload.
+  -->
+  <nav class="tabbar" aria-label="Sections">
+    <a class="tab" id="tab-recipes" href="#">Recipes</a>
+    <a class="tab" id="tab-list" href="#list">Grocery list <span id="grocery-count" class="tab-count" hidden></span></a>
+  </nav>
 
   <noscript>
     <p class="empty panel">Turn on JavaScript to see your recipes. The script that runs them is app.js, on this same site.</p>

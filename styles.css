@@ -180,6 +180,7 @@ h2 {
 .card h2 {
   margin: 0 0 0.4rem;
   font-size: 1.45rem;
+  overflow-wrap: anywhere;
 }
 
 .meta {
@@ -244,6 +245,13 @@ h2 {
 .detail-panel h1 {
   margin: 0 0 0.45rem;
   font-size: 2rem;
+  overflow-wrap: anywhere;
+}
+
+/* Full-width, quieter than Back and Start cooking. */
+a.edit-link {
+  margin-top: 0.35rem;
+  margin-bottom: 1rem;
 }
 
 .source {
@@ -344,6 +352,7 @@ h2 {
   padding: 0.85rem 0;
   border-bottom: 1px solid var(--line);
   font-size: 1.2rem;
+  overflow-wrap: anywhere;
 }
 
 .amount {
@@ -368,6 +377,9 @@ h2 {
   margin: 0 0 1rem;
   padding-left: 0.35rem;
   font-size: 1.15rem;
+  /* Keeps a line break typed in a step, and wraps long words. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .steps li::marker {
@@ -378,6 +390,8 @@ h2 {
 a:focus-visible,
 button:focus-visible,
 summary:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
 #search:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
@@ -437,9 +451,11 @@ summary:focus-visible,
   margin-top: 1rem;
 }
 
-/* The big Add / Update button, and Start cooking. Same amber as Back to recipes. */
+/* The big Add / Update button, Start cooking, and Add recipe.
+   Same amber as Back to recipes. */
 .add-grocery,
-a.cook-start {
+a.cook-start,
+a.add-recipe {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -473,9 +489,16 @@ a.cook-start {
 }
 
 .add-grocery:active,
-a.cook-start:active {
+a.cook-start:active,
+a.add-recipe:active {
   background: var(--accent-pressed);
   border-color: var(--accent-pressed);
+}
+
+/* Sits at the top of the recipe list, above the cards. */
+a.add-recipe {
+  margin-top: 0;
+  margin-bottom: 0.9rem;
 }
 
 /* Clear, Cancel, and Keep. Tall enough to tap, quieter than the amber button. */
@@ -500,7 +523,12 @@ a.cook-start:active {
   -webkit-appearance: none;
 }
 
-.secondary:active {
+a.secondary {
+  text-decoration: none;
+}
+
+.secondary:active,
+a.secondary:active {
   background: var(--card-pressed);
 }
 
@@ -754,6 +782,7 @@ body.is-cooking .tabbar {
   font-size: 1.875rem;
   font-weight: 600;
   line-height: 1.45;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
@@ -951,6 +980,137 @@ a.cook-next:active {
   display: none !important;
 }
 
+/* --- Add and edit ------------------------------------------------------
+   The form is a stack of full-width fields. Two short fields (amount
+   and unit) share a row. Everything else is one column, so a 360px
+   screen does not scroll sideways. Inputs are at least 48px tall.
+   1.125rem is 18px, big enough that a phone does not zoom in on focus. */
+
+.editor-panel {
+  padding-top: 1rem;
+  padding-bottom: 2.75rem;
+}
+
+.editor-panel h1 {
+  margin: 0;
+  font-size: 2rem;
+  overflow-wrap: anywhere;
+}
+
+.editor-panel h2 {
+  margin: 1.6rem 0 0.35rem;
+  font-size: 1.5rem;
+}
+
+.hint {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.editor-panel .field {
+  display: block;
+  margin-top: 0.9rem;
+  min-width: 0;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.editor-panel input,
+.editor-panel textarea {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 56px;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--field);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+
+.editor-panel textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.editor-panel input::placeholder,
+.editor-panel textarea::placeholder {
+  color: var(--placeholder);
+}
+
+.editor-panel input:focus,
+.editor-panel textarea:focus,
+.editor-panel input[aria-invalid="true"],
+.editor-panel textarea[aria-invalid="true"] {
+  border-color: var(--accent);
+}
+
+/* Shown under the field it belongs to. Amber, same as other messages. */
+.field-error {
+  display: block;
+  margin: 0.45rem 0 0;
+  color: var(--accent);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.editor-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.editor-row {
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.editor-grid .field {
+  margin-top: 0;
+}
+
+.span-2 {
+  grid-column: 1 / -1;
+}
+
+.editor-panel .remove-row {
+  margin-top: 0.85rem;
+}
+
+.editor-panel #add-ingredient,
+.editor-panel #add-step {
+  margin-top: 0.75rem;
+}
+
+.editor-panel #save-recipe {
+  margin-top: 1.35rem;
+}
+
+.delete-box {
+  margin-top: 0.4rem;
+}
+
 @media (min-width: 600px) {
   .hero {
     padding-top: 1.75rem;
@@ -960,7 +1120,8 @@ a.cook-next:active {
   .list-panel,
   .detail-panel,
   .grocery-panel,
-  .cook-screen {
+  .cook-screen,
+  .editor-panel {
     padding-top: 1.25rem;
   }
 }

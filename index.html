@@ -16,6 +16,12 @@
   edge. The grocery list's address ends with #list, so the phone Back
   button can return to the recipes.
 
+  Add recipe (on the list) opens a form at #new. Edit (on a recipe) opens
+  #edit/ plus that recipe's id. Save writes the recipe on this phone.
+  Cancel leaves without saving. Delete asks first. The starting recipes
+  still come from data/recipes.json. Your changes are stored beside that
+  file, so a newer copy of the file does not wipe what you typed.
+
   styles.css, app.js, and data/recipes.json are linked with relative paths
   (no leading slash). That keeps the site working when it is published at
   https://themaverickmando-source.github.io/recipe-app/
@@ -60,6 +66,8 @@
       </header>
 
       <div class="panel list-panel">
+        <!-- Big tap target. The address #new is the blank form. -->
+        <a class="add-recipe" href="#new">Add recipe</a>
         <div id="list">
           <p class="loading">Loading recipes…</p>
         </div>
@@ -91,6 +99,12 @@
       the Back / Next bar.
     -->
     <section id="cook" class="cook-screen" aria-label="Cooking" hidden></section>
+
+    <!--
+      Add and edit. Empty until the address is #new or #edit/<id>.
+      app.js draws the form. Nothing is written until Save.
+    -->
+    <section id="editor" class="panel editor-panel" hidden></section>
   </div>
 
   <!--

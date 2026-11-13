@@ -2,13 +2,15 @@
   Manolo's recipe book.
 
   What this file does, in order:
-    1. Load the recipes (from the phone if we already saved them,
-       otherwise from data/recipes.json).
+    1. Load the recipes. The starting book is data/recipes.json. Recipes
+       you add or edit, and seed recipes you delete, are saved on the
+       phone in a separate note and laid on top of that file. A newer
+       copy of the file can add recipes without erasing your changes.
     2. Draw a card for each recipe, and filter that list as you type.
     3. Open one recipe when the address ends with #recipe/<id>.
     4. On that recipe, − and + change how many people you are cooking for.
        Ingredient amounts on the screen scale to match. The saved recipe
-       is never edited.
+       is never edited by those buttons.
     5. Add those scaled ingredients to a grocery list (#list). The same
        ingredient from two recipes becomes one line. The list is saved
        on the phone, in its own note, separate from the recipes.
@@ -16,6 +18,9 @@
        numbers start at 1). Back, Next, and a sideways swipe move between
        steps. The screen stays awake while that page is open, when the
        phone allows it.
+    7. Add recipe (#new) and Edit (#edit/<id>) open a form. Save writes
+       that recipe on this phone and opens it. Cancel leaves without
+       saving. Delete asks first, then removes the recipe from this phone.
 
   The address hash is the part after the # sign. Changing it does not
   reload the page, and the phone's Back button walks back through those
@@ -26,11 +31,22 @@
   that the browser runs from the <script> tag at the bottom of index.html.
 */
 
-// The list currently saved on this phone. Empty until loading finishes.
+// The list on screen: the seed file, plus this phone's adds and edits,
+// minus seed recipes this phone has deleted. Empty until loading finishes.
 var recipes = [];
+
+// The starting book from data/recipes.json, or the offline copy of that
+// file. User edits are not written into this list.
+var seedRecipes = [];
+
+// This phone's adds, edits, and deletions. See readUserState.
+var userState = { recipes: [], deletedIds: [] };
 
 // True after the list is ready. Stops search from running too early.
 var ready = false;
+
+// True when the recipe file and the offline copy both failed.
+var loadFailed = false;
 
 // Where the list was scrolled, so Back returns to the same spot.
 var listScrollY = 0;
@@ -119,18 +135,26 @@ var PACKAGE_WORDS = [
 // on this phone. GitHub Pages hosts every project on one shared host
 // (themaverickmando-source.github.io), so the key names start with
 // "recipe-app." and will not collide with a different project.
+//
+// recipe-app.recipes is only an offline copy of data/recipes.json.
+// It is not the user's edits. An older version of this app treated
+// that key as the whole book and wrote recipe-app.data-version beside
+// it. That version key is no longer read. Leaving it on the phone does
+// not affect the grocery list or the recipes.
 var RECIPES_KEY = "recipe-app.recipes";
-var VERSION_KEY = "recipe-app.data-version";
 
 // A different key from the recipes, so clearing the grocery list
 // never deletes the recipe book. Same "recipe-app." prefix so it
 // will not collide with another project on this GitHub Pages host.
 var GROCERY_KEY = "recipe-app.grocery";
 
-// Which edition of data/recipes.json we last copied onto the phone.
-// After you edit the seed file and want every phone to pick up the new
-// copy, change this to "2", then "3", and so on.
-var DATA_VERSION = "1";
+// Adds, edits, and deletions, kept separate from the seed file so a
+// future update of data/recipes.json can add recipes without wiping
+// what this phone changed.
+// Shape: { recipes: [ ...recipe objects... ], deletedIds: [ "1", ... ] }.
+// An edited seed recipe is stored in recipes with the same id, and that
+// copy wins. deletedIds lists seed recipes this phone removed.
+var USER_KEY = "recipe-app.userRecipes";
 
 // --- Small helpers -------------------------------------------------------
 
@@ -164,8 +188,14 @@ function minutesLabel(count) {
 // Time, cuisine, and protein. Servings are not on this line.
 // The card does not need them, and the recipe screen has − and + buttons
 // so the count is not written twice.
+// Minutes are left off when the recipe has none. A recipe you add can
+// leave that box blank.
 function metaLine(recipe) {
-  var bits = [minutesLabel(recipe.total_minutes)];
+  var bits = [];
+  var minutes = Number(recipe.total_minutes);
+  if (minutes > 0) {
+    bits.push(minutesLabel(minutes));
+  }
   if (recipe.cuisine) {
     bits.push(recipe.cuisine);
   }
@@ -309,61 +339,155 @@ function storageSet(key, value) {
 
 // --- Loading and saving --------------------------------------------------
 
-// Returns the saved list, or null if this phone has no current copy.
-function readSavedRecipes() {
-  if (storageGet(VERSION_KEY) !== DATA_VERSION) {
-    return null;
-  }
+// The last seed file we managed to read. Used only when this visit cannot
+// reach data/recipes.json, so the book still opens offline.
+function readSeedCache() {
   var raw = storageGet(RECIPES_KEY);
+  var parsed;
   if (!raw) {
     return null;
   }
   try {
-    var parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return null;
-    }
-    return parsed;
+    parsed = JSON.parse(raw);
   } catch (error) {
     return null;
   }
+  if (!Array.isArray(parsed)) {
+    return null;
+  }
+  return parsed;
 }
 
-// Save the list first, then the version. If we saved the version first and
-// the list failed, the next visit would trust an empty notebook.
-function writeSavedRecipes(list) {
-  if (!storageSet(RECIPES_KEY, JSON.stringify(list))) {
+function writeSeedCache(list) {
+  storageSet(RECIPES_KEY, JSON.stringify(list));
+}
+
+// This phone's own changes. A bad note is treated as "no changes" so a
+// broken value cannot hide the seed recipes or the grocery list.
+function readUserState() {
+  var raw = storageGet(USER_KEY);
+  var parsed;
+  if (!raw) {
+    return { recipes: [], deletedIds: [] };
+  }
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    return { recipes: [], deletedIds: [] };
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { recipes: [], deletedIds: [] };
+  }
+  return {
+    recipes: Array.isArray(parsed.recipes) ? parsed.recipes : [],
+    deletedIds: Array.isArray(parsed.deletedIds) ? parsed.deletedIds : []
+  };
+}
+
+// Write the note first. The on-screen list changes only after that works,
+// so a full notebook does not pretend the recipe was saved.
+function writeUserState(next) {
+  if (!storageSet(USER_KEY, JSON.stringify(next))) {
     return false;
   }
-  return storageSet(VERSION_KEY, DATA_VERSION);
+  userState = next;
+  recipes = mergeRecipes(seedRecipes, userState);
+  return true;
 }
 
-// First visit (or a raised DATA_VERSION): copy data/recipes.json into
-// localStorage. Every visit after that reads localStorage and leaves the
-// file alone, so the book still opens when the phone is offline.
-async function loadRecipes() {
-  var saved = readSavedRecipes();
-  if (saved) {
-    return saved;
+// Seed recipes, in file order, with this phone's copy used when the id
+// matches. Seed ids listed in deletedIds are skipped. Recipes you added
+// (ids that are not in the file) are appended.
+function mergeRecipes(seed, state) {
+  var deleted = {};
+  var overlays = {};
+  var seen = {};
+  var result = [];
+  var list = state && Array.isArray(state.recipes) ? state.recipes : [];
+  var gone = state && Array.isArray(state.deletedIds) ? state.deletedIds : [];
+  var i, id, recipe;
+
+  for (i = 0; i < gone.length; i++) {
+    deleted[String(gone[i])] = true;
+  }
+  for (i = 0; i < list.length; i++) {
+    recipe = list[i];
+    if (!recipe || recipe.id === null || typeof recipe.id === "undefined") {
+      continue;
+    }
+    overlays[String(recipe.id)] = recipe;
   }
 
-  // Relative path, so it works in the GitHub Pages subfolder.
-  var response = await fetch("data/recipes.json");
-  if (!response.ok) {
+  for (i = 0; i < seed.length; i++) {
+    if (!seed[i] || seed[i].id === null || typeof seed[i].id === "undefined") {
+      continue;
+    }
+    id = String(seed[i].id);
+    seen[id] = true;
+    if (deleted[id]) {
+      continue;
+    }
+    if (overlays[id]) {
+      result.push(overlays[id]);
+    } else {
+      result.push(seed[i]);
+    }
+  }
+
+  for (i = 0; i < list.length; i++) {
+    recipe = list[i];
+    if (!recipe || recipe.id === null || typeof recipe.id === "undefined") {
+      continue;
+    }
+    id = String(recipe.id);
+    if (seen[id] || deleted[id]) {
+      continue;
+    }
+    result.push(recipe);
+  }
+
+  return result;
+}
+
+// Read the seed file when we can, so a new recipe in that file shows up
+// on the next visit. Fall back to the offline copy when we cannot.
+// Then lay this phone's changes on top.
+async function loadRecipes() {
+  var seed = null;
+  var response;
+  var fresh;
+
+  try {
+    // Relative path, so it works in the GitHub Pages subfolder.
+    response = await fetch("data/recipes.json");
+    if (response.ok) {
+      fresh = await response.json();
+      if (Array.isArray(fresh)) {
+        seed = fresh;
+        writeSeedCache(fresh);
+      }
+    }
+  } catch (error) {
+    seed = null;
+  }
+
+  if (!seed) {
+    seed = readSeedCache();
+  }
+  if (!seed) {
     throw new Error("Could not load data/recipes.json");
   }
-  var fresh = await response.json();
-  if (!Array.isArray(fresh)) {
-    throw new Error("Recipe file was not a list");
-  }
-  writeSavedRecipes(fresh);
-  return fresh;
+
+  seedRecipes = seed;
+  userState = readUserState();
+  return mergeRecipes(seedRecipes, userState);
 }
 
 function showLoadError() {
   var list = document.getElementById("list");
-  list.innerHTML = "";
   var message = document.createElement("p");
+  loadFailed = true;
+  list.innerHTML = "";
   message.className = "empty";
   message.textContent = "The recipes could not be loaded. Open this site from GitHub Pages, or run a local web server in this folder, then refresh.";
   list.appendChild(message);
@@ -420,11 +544,13 @@ function tagsHtml(tags) {
 }
 
 function recipeCardHtml(recipe) {
-  var href = "#recipe/" + encodeURIComponent(recipe.id);
+  var href = recipeHref(recipe.id);
+  var meta = metaLine(recipe);
+  var metaHtml = meta ? "<p class=\"meta\">" + escapeHtml(meta) + "</p>" : "";
   return (
     "<a class=\"card\" href=\"" + href + "\">" +
       "<h2>" + escapeHtml(recipe.title) + "</h2>" +
-      "<p class=\"meta\">" + escapeHtml(metaLine(recipe)) + "</p>" +
+      metaHtml +
       tagsHtml(recipe.tags) +
     "</a>"
   );
@@ -442,17 +568,20 @@ function renderList() {
   if (found.length === 0 && query.trim()) {
     list.innerHTML = "";
     empty.hidden = false;
+    empty.textContent = "No recipes match. Try a different word.";
     count.hidden = true;
     return;
   }
-
-  empty.hidden = true;
 
   if (found.length === 0) {
     count.hidden = true;
     list.innerHTML = "";
+    empty.hidden = false;
+    empty.textContent = "No recipes yet. Add one to get started.";
     return;
   }
+
+  empty.hidden = true;
 
   count.hidden = false;
   count.textContent = found.length === 1 ? "1 recipe" : found.length + " recipes";
@@ -527,6 +656,8 @@ function recipeDetailHtml(recipe, servings) {
   var source = recipe.source
     ? "<p class=\"source\">Source: " + escapeHtml(recipe.source) + "</p>"
     : "";
+  var meta = metaLine(recipe);
+  var metaHtml = meta ? "<p class=\"meta\">" + escapeHtml(meta) + "</p>" : "";
 
   // href="#" clears the recipe id, which shows the list again.
   // Opening a card already pushed a history entry, so the phone Back
@@ -534,7 +665,8 @@ function recipeDetailHtml(recipe, servings) {
   return (
     "<a class=\"back\" href=\"#\">← Back to recipes</a>" +
     "<h1>" + escapeHtml(recipe.title) + "</h1>" +
-    "<p class=\"meta\">" + escapeHtml(metaLine(recipe)) + "</p>" +
+    "<a class=\"secondary edit-link\" href=\"" + editHref(recipe.id) + "\">Edit</a>" +
+    metaHtml +
     source +
     tagsHtml(recipe.tags) +
     servingsControlHtml(recipe, servings) +
@@ -588,6 +720,23 @@ function recipeHref(id) {
   return "#recipe/" + encodeURIComponent(id);
 }
 
+// "#new" is a blank form. "#edit/5" edits the recipe with that id.
+function editHref(id) {
+  return "#edit/" + encodeURIComponent(id);
+}
+
+function isNewHash() {
+  return window.location.hash === "#new";
+}
+
+function editIdFromHash() {
+  var match = /^#edit\/([^/]+)$/.exec(window.location.hash);
+  if (!match) {
+    return null;
+  }
+  return decodeURIComponent(match[1]);
+}
+
 // "#cook/5/2" is recipe 5, step 2. Step numbers start at 1.
 // "#cook/5" alone is treated as step 1.
 function cookHref(id, step) {
@@ -636,10 +785,14 @@ function clampedStep(raw, count) {
 }
 
 // "#list" is the grocery list. "#recipe/5" is one recipe.
-// "#cook/5/2" is cooking. Anything else, including no hash, is home.
+// "#cook/5/2" is cooking. "#new" and "#edit/5" are the form.
+// Anything else, including no hash, is home.
 function screenFromHash() {
   if (window.location.hash === "#list") {
     return "list";
+  }
+  if (isNewHash() || editIdFromHash()) {
+    return "editor";
   }
   if (cookTargetFromHash()) {
     return "cook";
@@ -655,6 +808,7 @@ function showFromHash() {
   var detail = document.getElementById("detail");
   var listScreen = document.getElementById("grocery");
   var cook = document.getElementById("cook");
+  var editor = document.getElementById("editor");
   var next = screenFromHash();
 
   // Opening a screen is a fresh visit. The update question and the
@@ -672,10 +826,16 @@ function showFromHash() {
   // The bottom bar and the wake lock follow the screen, before we draw.
   syncCookingChrome(next);
 
-  // Home and the grocery list forget the serving count. The next open
-  // of a recipe starts from the number written in that recipe.
+  // Home, the grocery list, and the form forget the serving count.
+  // The next open of a recipe starts from the number written in that recipe.
   if (next !== "recipe" && next !== "cook") {
     servingsForId = "";
+  }
+
+  // Leaving the form throws away anything that was not saved.
+  if (next !== "editor") {
+    editor.hidden = true;
+    editor.innerHTML = "";
   }
 
   if (next === "home") {
@@ -713,6 +873,19 @@ function showFromHash() {
     cook.hidden = false;
     updateNav();
     drawCook();
+    return;
+  }
+
+  if (next === "editor") {
+    home.hidden = true;
+    detail.hidden = true;
+    detail.innerHTML = "";
+    listScreen.hidden = true;
+    cook.hidden = true;
+    cook.innerHTML = "";
+    editor.hidden = false;
+    updateNav();
+    drawEditor();
     return;
   }
 
@@ -2012,6 +2185,889 @@ function onCookToggle(event) {
   cookIngredientsOpen = !!panel.open;
 }
 
+// --- Add and edit --------------------------------------------------------
+//
+// #new is a blank form. #edit/<id> opens that recipe in the same form.
+// Save writes one recipe into recipe-app.userRecipes and opens it.
+// The seed file is not changed. Cancel is a link back, so nothing is written.
+// Delete asks first. A deleted seed id is remembered, so the next visit
+// does not bring that recipe back from the file. A deleted recipe you
+// added is just dropped from the note.
+//
+// New ids start with "u-" plus the time. Seed ids are small numbers
+// (1, 2, 3, ...), so the two kinds cannot clash.
+//
+// Amounts accept 1/2, 1 1/2, 0.5, or a blank box (stored as null, which
+// the rest of the app already shows as "to taste"). The amount box stays
+// on the full keyboard because a number keypad has no slash.
+
+var FRACTION_GLYPHS = [
+  ["⅛", "1/8"],
+  ["¼", "1/4"],
+  ["⅓", "1/3"],
+  ["⅜", "3/8"],
+  ["½", "1/2"],
+  ["⅝", "5/8"],
+  ["⅔", "2/3"],
+  ["¾", "3/4"],
+  ["⅞", "7/8"]
+];
+
+function normalizeAmountText(text) {
+  var s = String(text).replace(/\u00a0/g, " ").replace(/\u2044/g, "/").replace(/\u2215/g, "/");
+  var i;
+  for (i = 0; i < FRACTION_GLYPHS.length; i++) {
+    s = s.split(FRACTION_GLYPHS[i][0]).join(" " + FRACTION_GLYPHS[i][1]);
+  }
+  s = s.replace(/\s+/g, " ").trim();
+  if (s.charAt(s.length - 1) === ".") {
+    s = s.slice(0, -1);
+  }
+  return s;
+}
+
+function finishAmount(value) {
+  if (!isFinite(value) || value < 0) {
+    return { ok: false };
+  }
+  return { ok: true, amount: Math.round(value * 1000) / 1000 };
+}
+
+// Blank is valid and means "to taste" (amount null). Anything else has
+// to be a number the cook can read: 0.5, 1/2, or 1 1/2.
+function parseAmount(text) {
+  var s = normalizeAmountText(text);
+  var mixed;
+  var frac;
+  var whole;
+  var numer;
+  var denom;
+
+  if (!s) {
+    return { ok: true, amount: null };
+  }
+
+  mixed = /^([0-9]+)\s+([0-9]+)\s*\/\s*([0-9]+)$/.exec(s);
+  if (mixed) {
+    whole = parseInt(mixed[1], 10);
+    numer = parseInt(mixed[2], 10);
+    denom = parseInt(mixed[3], 10);
+    if (!denom) {
+      return { ok: false };
+    }
+    return finishAmount(whole + (numer / denom));
+  }
+
+  frac = /^([0-9]+)\s*\/\s*([0-9]+)$/.exec(s);
+  if (frac) {
+    numer = parseInt(frac[1], 10);
+    denom = parseInt(frac[2], 10);
+    if (!denom) {
+      return { ok: false };
+    }
+    return finishAmount(numer / denom);
+  }
+
+  if (/^[0-9]+(\.[0-9]+)?$/.test(s) || /^\.[0-9]+$/.test(s)) {
+    return finishAmount(Number(s));
+  }
+  return { ok: false };
+}
+
+// Show a stored amount in the form as 1/2 or 1 1/2 when it is one of
+// the kitchen fractions. Other numbers stay decimals (2.75 stays 2.75
+// only when it is not 2 3/4). Null stays a blank box.
+function formatAmountForInput(amount) {
+  var n;
+  var thousandths;
+  var whole;
+  var remainder;
+  var i;
+  var numer;
+  var denom;
+  var target;
+  var diff;
+  var bestDiff;
+  var bestNumer;
+  var bestDenom;
+
+  if (amount === null || typeof amount === "undefined" || amount === "") {
+    return "";
+  }
+  n = Number(amount);
+  if (!isFinite(n) || n < 0) {
+    return "";
+  }
+
+  thousandths = Math.round(n * 1000);
+  whole = Math.floor(thousandths / 1000);
+  remainder = thousandths - whole * 1000;
+
+  if (remainder === 0) {
+    return String(whole);
+  }
+  if (1000 - remainder <= 10) {
+    return String(whole + 1);
+  }
+
+  bestDiff = 11;
+  bestNumer = 0;
+  bestDenom = 1;
+  for (i = 0; i < COOKING_FRACTIONS.length; i++) {
+    numer = COOKING_FRACTIONS[i][0];
+    denom = COOKING_FRACTIONS[i][1];
+    target = Math.round((1000 * numer) / denom);
+    diff = Math.abs(remainder - target);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestNumer = numer;
+      bestDenom = denom;
+    }
+  }
+  if (bestDiff <= 10 && bestNumer > 0) {
+    if (whole === 0) {
+      return bestNumer + "/" + bestDenom;
+    }
+    return whole + " " + bestNumer + "/" + bestDenom;
+  }
+  return String(thousandths / 1000);
+}
+
+function parseWholeNumber(text) {
+  var s = String(text).trim();
+  if (!/^[0-9]+$/.test(s)) {
+    return null;
+  }
+  return parseInt(s, 10);
+}
+
+function parseOptionalMinutes(text) {
+  var s = String(text).trim();
+  var n;
+  if (!s) {
+    return { ok: true, minutes: null };
+  }
+  if (!/^[0-9]+$/.test(s)) {
+    return { ok: false };
+  }
+  n = parseInt(s, 10);
+  if (n < 1) {
+    return { ok: false };
+  }
+  return { ok: true, minutes: n };
+}
+
+function parseTags(text) {
+  var parts = String(text).split(",");
+  var tags = [];
+  var i;
+  var tag;
+  for (i = 0; i < parts.length; i++) {
+    tag = parts[i].trim();
+    if (tag) {
+      tags.push(tag);
+    }
+  }
+  return tags;
+}
+
+function idTaken(id) {
+  var wanted = String(id);
+  var i;
+  for (i = 0; i < seedRecipes.length; i++) {
+    if (seedRecipes[i] && String(seedRecipes[i].id) === wanted) {
+      return true;
+    }
+  }
+  if (userState && Array.isArray(userState.recipes)) {
+    for (i = 0; i < userState.recipes.length; i++) {
+      if (userState.recipes[i] && String(userState.recipes[i].id) === wanted) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function newRecipeId() {
+  var i;
+  var id;
+  for (i = 0; i < 6; i++) {
+    id = "u-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+    if (!idTaken(id)) {
+      return id;
+    }
+  }
+  return "u-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12);
+}
+
+function stateWithRecipe(recipe) {
+  var nextRecipes = [];
+  var nextDeleted = [];
+  var wanted = String(recipe.id);
+  var replaced = false;
+  var i;
+
+  for (i = 0; i < userState.recipes.length; i++) {
+    if (String(userState.recipes[i].id) === wanted) {
+      if (!replaced) {
+        nextRecipes.push(recipe);
+        replaced = true;
+      }
+    } else {
+      nextRecipes.push(userState.recipes[i]);
+    }
+  }
+  if (!replaced) {
+    nextRecipes.push(recipe);
+  }
+  for (i = 0; i < userState.deletedIds.length; i++) {
+    if (String(userState.deletedIds[i]) !== wanted) {
+      nextDeleted.push(userState.deletedIds[i]);
+    }
+  }
+  return { recipes: nextRecipes, deletedIds: nextDeleted };
+}
+
+function stateWithoutRecipe(id) {
+  var wanted = String(id);
+  var nextRecipes = [];
+  var nextDeleted = [];
+  var isSeed = false;
+  var already = false;
+  var i;
+
+  for (i = 0; i < userState.recipes.length; i++) {
+    if (String(userState.recipes[i].id) !== wanted) {
+      nextRecipes.push(userState.recipes[i]);
+    }
+  }
+  for (i = 0; i < userState.deletedIds.length; i++) {
+    nextDeleted.push(String(userState.deletedIds[i]));
+    if (String(userState.deletedIds[i]) === wanted) {
+      already = true;
+    }
+  }
+  for (i = 0; i < seedRecipes.length; i++) {
+    if (String(seedRecipes[i].id) === wanted) {
+      isSeed = true;
+    }
+  }
+  // Only seed ids are remembered as deleted. A recipe you added is
+  // simply removed. Remembering it would hide a future seed recipe
+  // that happened to reuse that id, and our own ids already cannot.
+  if (isSeed && !already) {
+    nextDeleted.push(wanted);
+  }
+  return { recipes: nextRecipes, deletedIds: nextDeleted };
+}
+
+// Start from the saved recipe so source, cuisine, and protein stay
+// when the form does not ask for them. Then replace the fields it does.
+function recipeFromFields(existing, fields) {
+  var recipe = existing ? JSON.parse(JSON.stringify(existing)) : {};
+  if (!existing) {
+    recipe.id = newRecipeId();
+  }
+  recipe.title = fields.title;
+  recipe.servings = fields.servings;
+  if (fields.minutes === null) {
+    delete recipe.total_minutes;
+  } else {
+    recipe.total_minutes = fields.minutes;
+  }
+  recipe.tags = fields.tags;
+  recipe.ingredients = fields.ingredients;
+  recipe.steps = fields.steps;
+  return recipe;
+}
+
+function fieldErrorHtml(name) {
+  return "<span class=\"field-error\" data-error=\"" + name + "\" aria-live=\"polite\" hidden></span>";
+}
+
+function ingredientRowHtml(ingredient) {
+  var amount = formatAmountForInput(ingredient ? ingredient.amount : null);
+  var unit = ingredient && ingredient.unit ? ingredient.unit : "";
+  var name = ingredient && ingredient.name ? ingredient.name : "";
+  var prep = ingredient && ingredient.prep ? ingredient.prep : "";
+  return (
+    "<div class=\"editor-row\" data-ingredient-row>" +
+      "<div class=\"editor-grid\">" +
+        "<label class=\"field\">" +
+          "<span class=\"field-label\">Amount</span>" +
+          "<input type=\"text\" inputmode=\"text\" autocomplete=\"off\" autocapitalize=\"off\" spellcheck=\"false\" enterkeyhint=\"next\" placeholder=\"1/2\" data-amount value=\"" + escapeHtml(amount) + "\">" +
+          fieldErrorHtml("amount") +
+        "</label>" +
+        "<label class=\"field\">" +
+          "<span class=\"field-label\">Unit</span>" +
+          "<input type=\"text\" autocomplete=\"off\" autocapitalize=\"off\" spellcheck=\"false\" enterkeyhint=\"next\" placeholder=\"tbsp\" data-unit value=\"" + escapeHtml(unit) + "\">" +
+        "</label>" +
+        "<label class=\"field span-2\">" +
+          "<span class=\"field-label\">Name</span>" +
+          "<input type=\"text\" autocomplete=\"off\" autocapitalize=\"words\" enterkeyhint=\"next\" placeholder=\"garlic\" data-name value=\"" + escapeHtml(name) + "\">" +
+          fieldErrorHtml("name") +
+        "</label>" +
+        "<label class=\"field span-2\">" +
+          "<span class=\"field-label\">Prep (optional)</span>" +
+          "<input type=\"text\" autocomplete=\"off\" autocapitalize=\"sentences\" enterkeyhint=\"next\" placeholder=\"diced\" data-prep value=\"" + escapeHtml(prep) + "\">" +
+        "</label>" +
+      "</div>" +
+      "<button type=\"button\" class=\"secondary remove-row\" data-remove=\"ingredient\" aria-label=\"Remove ingredient\">Remove</button>" +
+    "</div>"
+  );
+}
+
+function stepRowHtml(text) {
+  return (
+    "<div class=\"editor-row\" data-step-row>" +
+      "<label class=\"field\">" +
+        "<span class=\"field-label\">Step</span>" +
+        "<textarea rows=\"4\" data-step autocomplete=\"off\" autocapitalize=\"sentences\" enterkeyhint=\"next\">" + escapeHtml(text || "") + "</textarea>" +
+      "</label>" +
+      "<button type=\"button\" class=\"secondary remove-row\" data-remove=\"step\" aria-label=\"Remove step\">Remove</button>" +
+    "</div>"
+  );
+}
+
+function editorFormHtml(recipe) {
+  var isEdit = !!recipe;
+  var ingredients = recipe && recipe.ingredients && recipe.ingredients.length ? recipe.ingredients : [null];
+  var steps = recipe && recipe.steps && recipe.steps.length ? recipe.steps : [""];
+  var ingredientHtml = "";
+  var stepHtml = "";
+  var i;
+  var title = "";
+  var servings = "";
+  var minutes = "";
+  var tags = "";
+  var cancel;
+  var deleteBlock = "";
+
+  if (recipe) {
+    title = recipe.title || "";
+    if (recipe.servings) {
+      servings = String(recipe.servings);
+    }
+    if (recipe.total_minutes) {
+      minutes = String(recipe.total_minutes);
+    }
+    if (recipe.tags && recipe.tags.length) {
+      tags = recipe.tags.join(", ");
+    }
+  }
+
+  for (i = 0; i < ingredients.length; i++) {
+    ingredientHtml += ingredientRowHtml(ingredients[i]);
+  }
+  for (i = 0; i < steps.length; i++) {
+    stepHtml += stepRowHtml(steps[i]);
+  }
+
+  cancel = isEdit ? recipeHref(recipe.id) : "#";
+
+  if (isEdit) {
+    deleteBlock =
+      "<div class=\"delete-box\" id=\"delete-box\">" +
+        "<button type=\"button\" class=\"secondary\" id=\"delete-recipe\">Delete</button>" +
+        "<div class=\"offer\" id=\"delete-confirm\" hidden>" +
+          "<p>Delete this recipe? It will be removed from this phone. Anything already on your grocery list stays.</p>" +
+          "<button type=\"button\" class=\"add-grocery\" id=\"delete-yes\">Delete</button>" +
+          "<button type=\"button\" class=\"secondary\" id=\"delete-no\">Keep recipe</button>" +
+        "</div>" +
+      "</div>";
+  }
+
+  return (
+    "<form id=\"recipe-form\" autocomplete=\"off\" novalidate>" +
+      "<p class=\"kicker\">Manolo's kitchen</p>" +
+      "<h1>" + (isEdit ? "Edit recipe" : "New recipe") + "</h1>" +
+      "<label class=\"field\">" +
+        "<span class=\"field-label\">Title</span>" +
+        "<input id=\"recipe-title\" name=\"title\" type=\"text\" autocomplete=\"off\" autocapitalize=\"words\" enterkeyhint=\"next\" value=\"" + escapeHtml(title) + "\">" +
+        fieldErrorHtml("title") +
+      "</label>" +
+      "<label class=\"field\">" +
+        "<span class=\"field-label\">Servings</span>" +
+        "<input id=\"recipe-servings\" name=\"servings\" type=\"text\" inputmode=\"numeric\" pattern=\"[0-9]*\" autocomplete=\"off\" enterkeyhint=\"next\" value=\"" + escapeHtml(servings) + "\">" +
+        fieldErrorHtml("servings") +
+      "</label>" +
+      "<label class=\"field\">" +
+        "<span class=\"field-label\">Total minutes (optional)</span>" +
+        "<input id=\"recipe-minutes\" name=\"minutes\" type=\"text\" inputmode=\"numeric\" pattern=\"[0-9]*\" autocomplete=\"off\" enterkeyhint=\"next\" value=\"" + escapeHtml(minutes) + "\">" +
+        fieldErrorHtml("minutes") +
+      "</label>" +
+      "<label class=\"field\">" +
+        "<span class=\"field-label\">Tags (optional)</span>" +
+        "<input id=\"recipe-tags\" name=\"tags\" type=\"text\" autocomplete=\"off\" autocapitalize=\"off\" spellcheck=\"false\" enterkeyhint=\"next\" placeholder=\"weeknight, gluten-free\" value=\"" + escapeHtml(tags) + "\">" +
+        "<span class=\"hint\">Separate tags with commas.</span>" +
+      "</label>" +
+      "<h2>Ingredients</h2>" +
+      "<p class=\"hint\">Amount can be 1/2, 1 1/2, 0.5, or blank for to taste.</p>" +
+      "<div class=\"editor-rows\" id=\"ingredient-rows\">" + ingredientHtml + "</div>" +
+      "<p class=\"field-error\" data-error=\"ingredients\" aria-live=\"polite\" hidden></p>" +
+      "<button type=\"button\" class=\"secondary\" id=\"add-ingredient\">Add ingredient</button>" +
+      "<h2>Steps</h2>" +
+      "<div class=\"editor-rows\" id=\"step-rows\">" + stepHtml + "</div>" +
+      "<p class=\"field-error\" data-error=\"steps\" aria-live=\"polite\" hidden></p>" +
+      "<button type=\"button\" class=\"secondary\" id=\"add-step\">Add step</button>" +
+      "<p class=\"field-error\" data-error=\"save\" aria-live=\"polite\" hidden></p>" +
+      "<button type=\"submit\" class=\"add-grocery\" id=\"save-recipe\">Save</button>" +
+      "<a class=\"secondary\" href=\"" + cancel + "\">Cancel</a>" +
+      deleteBlock +
+    "</form>"
+  );
+}
+
+function missingEditHtml() {
+  return (
+    "<a class=\"back\" href=\"#\">← Back to recipes</a>" +
+    "<h1>Recipe not found</h1>" +
+    "<p>That recipe is not saved on this phone.</p>"
+  );
+}
+
+function loadErrorEditorHtml() {
+  return (
+    "<a class=\"back\" href=\"#\">← Back to recipes</a>" +
+    "<h1>Recipes could not be loaded</h1>" +
+    "<p>The form needs the recipe file. Open this site from GitHub Pages, or run a local web server in this folder, then refresh.</p>"
+  );
+}
+
+function drawEditor() {
+  var editor = document.getElementById("editor");
+  var id;
+  var recipe;
+  var titleInput;
+
+  if (loadFailed) {
+    editor.innerHTML = loadErrorEditorHtml();
+    document.title = "Recipes";
+    window.scrollTo(0, 0);
+    return;
+  }
+
+  if (isNewHash()) {
+    editor.innerHTML = editorFormHtml(null);
+    document.title = "New recipe";
+    window.scrollTo(0, 0);
+    titleInput = document.getElementById("recipe-title");
+    if (titleInput) {
+      titleInput.focus();
+    }
+    return;
+  }
+
+  id = editIdFromHash();
+  recipe = id ? findRecipe(id) : null;
+  if (!recipe) {
+    editor.innerHTML = missingEditHtml();
+    document.title = "Recipe not found";
+    window.scrollTo(0, 0);
+    return;
+  }
+
+  editor.innerHTML = editorFormHtml(recipe);
+  document.title = "Edit recipe";
+  window.scrollTo(0, 0);
+}
+
+function clearFormErrors(form) {
+  var errors = form.querySelectorAll(".field-error");
+  var inputs = form.querySelectorAll("[aria-invalid]");
+  var i;
+  for (i = 0; i < errors.length; i++) {
+    errors[i].hidden = true;
+    errors[i].textContent = "";
+  }
+  for (i = 0; i < inputs.length; i++) {
+    inputs[i].removeAttribute("aria-invalid");
+  }
+}
+
+function showFormError(scope, input, key, message) {
+  var el = scope.querySelector("[data-error=\"" + key + "\"]");
+  if (el) {
+    el.hidden = false;
+    el.textContent = message;
+  }
+  if (input) {
+    input.setAttribute("aria-invalid", "true");
+  }
+  return input || el;
+}
+
+// Read the form. Blank ingredient rows and blank steps are ignored.
+// A row you started has to have a name, and the amount has to be blank
+// or a number we understand. Returns the fields, or null if something
+// needs fixing. Messages sit under the fields they belong to.
+function readEditorFields() {
+  var form = document.getElementById("recipe-form");
+  var titleInput = document.getElementById("recipe-title");
+  var servingsInput = document.getElementById("recipe-servings");
+  var minutesInput = document.getElementById("recipe-minutes");
+  var tagsInput = document.getElementById("recipe-tags");
+  var title;
+  var servings;
+  var minutes;
+  var rows;
+  var steps;
+  var ingredients = [];
+  var stepValues = [];
+  var anyIngredient = false;
+  var i;
+  var row;
+  var amountInput;
+  var nameInput;
+  var unitInput;
+  var prepInput;
+  var name;
+  var unit;
+  var prep;
+  var parsed;
+  var blank;
+  var stepInput;
+  var stepText;
+  var firstBad = null;
+  var mark;
+
+  if (!form) {
+    return null;
+  }
+  clearFormErrors(form);
+
+  title = titleInput.value.trim();
+  if (!title) {
+    mark = showFormError(form, titleInput, "title", "Give this recipe a title.");
+    if (!firstBad) {
+      firstBad = mark;
+    }
+  }
+
+  servings = parseWholeNumber(servingsInput.value);
+  if (servings === null || servings < 1) {
+    mark = showFormError(form, servingsInput, "servings", "Servings needs to be a whole number, at least 1.");
+    if (!firstBad) {
+      firstBad = mark;
+    }
+  }
+
+  minutes = parseOptionalMinutes(minutesInput.value);
+  if (!minutes.ok) {
+    mark = showFormError(form, minutesInput, "minutes", "Use minutes as a whole number, 1 or more, or leave this blank.");
+    if (!firstBad) {
+      firstBad = mark;
+    }
+  }
+
+  rows = form.querySelectorAll("[data-ingredient-row]");
+  for (i = 0; i < rows.length; i++) {
+    row = rows[i];
+    amountInput = row.querySelector("[data-amount]");
+    nameInput = row.querySelector("[data-name]");
+    unitInput = row.querySelector("[data-unit]");
+    prepInput = row.querySelector("[data-prep]");
+    name = nameInput.value.trim();
+    unit = unitInput.value.trim();
+    prep = prepInput.value.trim();
+    parsed = parseAmount(amountInput.value);
+    blank = !String(amountInput.value).trim() && !name && !unit && !prep;
+    if (blank) {
+      continue;
+    }
+    anyIngredient = true;
+    if (!parsed.ok) {
+      mark = showFormError(row, amountInput, "amount", "Use an amount like 1/2, 1 1/2, or 0.5, or leave it blank.");
+      if (!firstBad) {
+        firstBad = mark;
+      }
+    }
+    if (!name) {
+      mark = showFormError(row, nameInput, "name", "Name this ingredient.");
+      if (!firstBad) {
+        firstBad = mark;
+      }
+    }
+    if (parsed.ok && name) {
+      ingredients.push({
+        name: name,
+        amount: parsed.amount,
+        unit: unit,
+        prep: prep
+      });
+    }
+  }
+
+  if (!anyIngredient) {
+    mark = showFormError(form, null, "ingredients", "Add at least one ingredient.");
+    if (!firstBad) {
+      firstBad = mark;
+    }
+  }
+
+  steps = form.querySelectorAll("[data-step-row]");
+  for (i = 0; i < steps.length; i++) {
+    stepInput = steps[i].querySelector("[data-step]");
+    stepText = stepInput.value.trim();
+    if (!stepText) {
+      continue;
+    }
+    stepValues.push(stepText);
+  }
+  if (stepValues.length === 0) {
+    mark = showFormError(form, null, "steps", "Add at least one step.");
+    if (!firstBad) {
+      firstBad = mark;
+    }
+  }
+
+  if (firstBad) {
+    if (firstBad.scrollIntoView) {
+      firstBad.scrollIntoView(true);
+    }
+    return null;
+  }
+
+  return {
+    title: title,
+    servings: servings,
+    minutes: minutes.minutes,
+    tags: parseTags(tagsInput.value),
+    ingredients: ingredients,
+    steps: stepValues
+  };
+}
+
+function showSaveError(message) {
+  var el = document.querySelector("#recipe-form [data-error=\"save\"]");
+  if (!el) {
+    return;
+  }
+  el.hidden = false;
+  el.textContent = message;
+  if (el.scrollIntoView) {
+    el.scrollIntoView(true);
+  }
+}
+
+function openHash(hash) {
+  try {
+    history.replaceState(null, "", hash);
+  } catch (error) {
+    window.location.hash = hash;
+    return;
+  }
+  showFromHash();
+}
+
+function saveEditorForm() {
+  var existing = null;
+  var id = editIdFromHash();
+  var fields;
+  var recipe;
+
+  if (loadFailed) {
+    return;
+  }
+  if (id) {
+    existing = findRecipe(id);
+    if (!existing) {
+      return;
+    }
+  }
+
+  fields = readEditorFields();
+  if (!fields) {
+    return;
+  }
+
+  recipe = recipeFromFields(existing, fields);
+  if (!writeUserState(stateWithRecipe(recipe))) {
+    showSaveError("This phone could not save the recipe. Check that storage is allowed for this site, then try again.");
+    return;
+  }
+  renderList();
+  openHash(recipeHref(recipe.id));
+}
+
+function deleteEditorRecipe() {
+  var id = editIdFromHash();
+  if (!id || !findRecipe(id)) {
+    return;
+  }
+  if (!writeUserState(stateWithoutRecipe(id))) {
+    showSaveError("This phone could not delete the recipe. Check that storage is allowed for this site, then try again.");
+    return;
+  }
+  renderList();
+  openHash("#");
+}
+
+function addIngredientRow() {
+  var host = document.getElementById("ingredient-rows");
+  var rows;
+  var input;
+  if (!host) {
+    return;
+  }
+  host.insertAdjacentHTML("beforeend", ingredientRowHtml(null));
+  rows = host.querySelectorAll("[data-amount]");
+  input = rows[rows.length - 1];
+  if (input) {
+    input.focus();
+  }
+}
+
+function addStepRow() {
+  var host = document.getElementById("step-rows");
+  var rows;
+  var input;
+  if (!host) {
+    return;
+  }
+  host.insertAdjacentHTML("beforeend", stepRowHtml(""));
+  rows = host.querySelectorAll("[data-step]");
+  input = rows[rows.length - 1];
+  if (input) {
+    input.focus();
+  }
+}
+
+function showDeleteConfirm() {
+  var button = document.getElementById("delete-recipe");
+  var box = document.getElementById("delete-confirm");
+  var yes;
+  if (button) {
+    button.hidden = true;
+  }
+  if (box) {
+    box.hidden = false;
+    yes = document.getElementById("delete-yes");
+    if (yes) {
+      yes.focus();
+    }
+  }
+}
+
+function hideDeleteConfirm() {
+  var button = document.getElementById("delete-recipe");
+  var box = document.getElementById("delete-confirm");
+  if (box) {
+    box.hidden = true;
+  }
+  if (button) {
+    button.hidden = false;
+    button.focus();
+  }
+}
+
+function rowFromButton(button, attr) {
+  var node = button;
+  while (node && node !== document) {
+    if (node.getAttribute && node.getAttribute(attr) !== null) {
+      return node;
+    }
+    node = node.parentNode;
+  }
+  return null;
+}
+
+function onEditorClick(event) {
+  var button = clickedButton(event);
+  var row;
+  if (!button) {
+    return;
+  }
+  if (button.id === "add-ingredient") {
+    addIngredientRow();
+    return;
+  }
+  if (button.id === "add-step") {
+    addStepRow();
+    return;
+  }
+  if (button.id === "delete-recipe") {
+    showDeleteConfirm();
+    return;
+  }
+  if (button.id === "delete-no") {
+    hideDeleteConfirm();
+    return;
+  }
+  if (button.id === "delete-yes") {
+    deleteEditorRecipe();
+    return;
+  }
+  if (button.getAttribute("data-remove") === "ingredient") {
+    row = rowFromButton(button, "data-ingredient-row");
+    if (row && row.parentNode) {
+      row.parentNode.removeChild(row);
+    }
+    return;
+  }
+  if (button.getAttribute("data-remove") === "step") {
+    row = rowFromButton(button, "data-step-row");
+    if (row && row.parentNode) {
+      row.parentNode.removeChild(row);
+    }
+  }
+}
+
+function onEditorSubmit(event) {
+  event.preventDefault();
+  saveEditorForm();
+}
+
+// Clear the message under the field being edited, so a fixed row does
+// not keep showing the old complaint.
+function classListHas(node, name) {
+  var parts;
+  var i;
+  if (!node || !node.className) {
+    return false;
+  }
+  parts = String(node.className).split(/\s+/);
+  for (i = 0; i < parts.length; i++) {
+    if (parts[i] === name) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function onEditorInput(event) {
+  var node = event.target;
+  var field = node ? node.parentNode : null;
+  var errorEl = null;
+  var sectionError = null;
+  // Walk up from the input so we clear that field's message and, when
+  // the field sits in a row, the "add at least one" message too.
+  while (field && field !== document) {
+    if (!errorEl && classListHas(field, "field") && field.querySelector) {
+      errorEl = field.querySelector(".field-error");
+    }
+    if (field.getAttribute && field.getAttribute("data-ingredient-row") !== null) {
+      sectionError = document.querySelector("#recipe-form [data-error=\"ingredients\"]");
+    }
+    if (field.getAttribute && field.getAttribute("data-step-row") !== null) {
+      sectionError = document.querySelector("#recipe-form [data-error=\"steps\"]");
+    }
+    field = field.parentNode;
+  }
+  if (errorEl) {
+    errorEl.hidden = true;
+    errorEl.textContent = "";
+  }
+  if (sectionError) {
+    sectionError.hidden = true;
+    sectionError.textContent = "";
+  }
+  if (node && node.removeAttribute) {
+    node.removeAttribute("aria-invalid");
+  }
+}
+
 // --- Start ---------------------------------------------------------------
 
 // The script tag is at the bottom of index.html, so the elements exist.
@@ -2024,10 +3080,10 @@ async function start() {
 
   window.addEventListener("hashchange", function () {
     // Home and the grocery list work even if the recipe file failed to
-    // load. A recipe or cooking screen waits until the recipes are ready,
-    // so we don't flash "Recipe not found" during that load.
+    // load. A recipe, the form, or cooking waits until the recipes are
+    // ready, so we don't flash "Recipe not found" during that load.
     var screen = screenFromHash();
-    if (ready || (screen !== "recipe" && screen !== "cook")) {
+    if (ready || loadFailed || (screen !== "recipe" && screen !== "cook" && screen !== "editor")) {
       showFromHash();
     }
   });
@@ -2038,6 +3094,13 @@ async function start() {
   // time the count changes, and this still hears the taps.
   document.getElementById("detail").addEventListener("click", onDetailClick);
   document.getElementById("grocery").addEventListener("click", onGroceryClick);
+
+  // The form is redrawn when you open it. These listeners stay on the
+  // section, so they still hear Save, Add ingredient, and Delete.
+  var editorEl = document.getElementById("editor");
+  editorEl.addEventListener("click", onEditorClick);
+  editorEl.addEventListener("submit", onEditorSubmit);
+  editorEl.addEventListener("input", onEditorInput);
 
   // Swipes are heard on the cooking section, which stays in the page
   // while its contents are redrawn for each step. pointermove is not
@@ -2067,7 +3130,8 @@ async function start() {
   } catch (error) {
     showLoadError();
     // The saved grocery list can still open if the address is #list.
-    if (screenFromHash() === "list") {
+    // The form explains that it cannot open when the book failed to load.
+    if (screenFromHash() === "list" || screenFromHash() === "editor") {
       showFromHash();
     }
     return;

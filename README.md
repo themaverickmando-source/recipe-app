@@ -15,15 +15,16 @@ https://themaverickmando-source.github.io/recipe-app/
 - **Add to grocery list** saves those amounts. If that recipe is already on the list, the app asks before it updates the old line.
 - The bottom bar opens the **Grocery list** (the address becomes `#list`). The same ingredient from two recipes becomes one line when the name and the unit match. Tap a line to check it off.
 - **Start cooking** opens one step at a time. The address becomes `#cook/` plus the recipe id and the step number (`#cook/5/2` is step 2). **Back** and **Next** sit at the bottom, and a sideways swipe does the same thing. On the last step, **Next** says **Done** and returns to the recipe. **Exit** does too. The screen tries to stay on while that page is open. A collapsible **Ingredients** list uses the serving count you picked on the recipe.
-- The first visit copies `data/recipes.json` onto the phone (the browser's localStorage). The grocery list is saved in its own note, separate from the recipes. Both stay on the phone after a reload. Cooking does not write either note.
+- **Add recipe** (on the list) opens a form. The address becomes `#new`. **Edit** on a recipe opens `#edit/` plus that recipe's id. **Save** keeps the recipe on this phone and opens it. **Cancel** leaves without saving. **Delete** asks first, then removes the recipe from this phone.
+- The starting recipes are read from `data/recipes.json` each visit (or from an offline copy of that file when the phone cannot reach it). Recipes you add or edit, and seed recipes you delete, are stored in a separate note (`recipe-app.userRecipes`). A newer copy of the file can add recipes without wiping those changes. An edited seed recipe keeps your version. The grocery list stays in its own note (`recipe-app.grocery`). Cooking does not write either note.
 
 Search ignores capitals and accents, so `aioli` finds `aïoli`.
 
 ## Files
 
-- `index.html` — the page skeleton: search box, recipe list, recipe screen, cooking screen, grocery list, and the bottom bar.
+- `index.html` — the page skeleton: search box, recipe list, recipe screen, cooking screen, grocery list, add and edit form, and the bottom bar.
 - `styles.css` — colors, type size, and spacing, aimed at a phone screen.
-- `app.js` — loading, search, the recipe screen, cooking mode, and the grocery list. The comments explain the flow.
+- `app.js` — loading, search, the recipe screen, cooking mode, the grocery list, and add, edit, and delete. The comments explain the flow.
 - `data/recipes.json` — the starting recipes.
 - `.nojekyll` — an empty file that tells GitHub Pages to publish these files as they are.
 
@@ -41,4 +42,4 @@ Open http://127.0.0.1:8080/
 
 ## Update the starting recipes later
 
-Edit `data/recipes.json`, then in `app.js` change `DATA_VERSION` from `"1"` to `"2"`. The next visit replaces the copy saved on the phone.
+Edit `data/recipes.json`. The next visit that can reach the file picks up new seed recipes. Recipes someone added, edited, or deleted on their phone stay as they left them. You do not change a version number. An edited seed recipe keeps that person's version, matched by id, so leave existing ids alone when you add a recipe to the file.

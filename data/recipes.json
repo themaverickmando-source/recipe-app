@@ -533,5 +533,208 @@
       "Spread in a 9x13 plus an 8x8 (or one large roasting pan). Top with mozzarella and remaining Parmesan.",
       "Bake 15-20 min until bubbling and browned. Finish with herbs."
     ]
+  },
+  {
+    "id": 7,
+    "title": "Beef skillet with cheesy cauli topping",
+    "source": "Green Chef recipe card",
+    "servings": 2,
+    "cuisine": "American",
+    "protein": "ground beef",
+    "total_minutes": 25,
+    "tags": [
+      "weeknight",
+      "skillet",
+      "gluten-free",
+      "low-carb"
+    ],
+    "ingredients": [
+      {
+        "name": "shallot",
+        "amount": 1,
+        "unit": "whole",
+        "prep": ""
+      },
+      {
+        "name": "chives",
+        "amount": 0.25,
+        "unit": "oz",
+        "prep": "minced"
+      },
+      {
+        "name": "cauliflower rice",
+        "amount": 9,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "carrots",
+        "amount": 4,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "ground beef",
+        "amount": 10,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "rosemary, basil and sage blend",
+        "amount": 1.5,
+        "unit": "tsp",
+        "prep": ""
+      },
+      {
+        "name": "peas",
+        "amount": 2.5,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "umami stock concentrate",
+        "amount": 2,
+        "unit": "whole",
+        "prep": ""
+      },
+      {
+        "name": "sour cream",
+        "amount": 1,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "white cheddar cheese",
+        "amount": 2,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "butter",
+        "amount": 1,
+        "unit": "tbsp",
+        "prep": ""
+      },
+      {
+        "name": "cooking oil",
+        "amount": null,
+        "unit": "",
+        "prep": "drizzle"
+      },
+      {
+        "name": "salt and pepper",
+        "amount": null,
+        "unit": "",
+        "prep": "to taste"
+      }
+    ],
+    "steps": [
+      "Prep: bring a medium pot of lightly salted water to a boil. Trim and peel shallot; halve and small dice (about 1/4 inch). Mince chives.",
+      "Start cauliflower mash: add cauliflower rice to boiling water; cook 4-5 min until very tender. Turn off heat, strain, shake off excess water, return to pot. Let sit 5 min on the warm (turned off) burner so the water evaporates.",
+      "Cook veggies: heat a drizzle of oil in a medium sauté pan over medium-high. Add shallot and carrots; season with salt and pepper. Cook 3-4 min until carrots are fork-tender.",
+      "Cook beef: add ground beef and a little more oil. Season with the rosemary, basil and sage blend, salt and pepper. Cook 5-6 min, breaking it up, until cooked through (160°F). Add peas, umami stock concentrates and about 2 tbsp water; stir. Remove from heat; season to taste.",
+      "Finish mash: add sour cream, white cheddar and 1 tbsp butter to the cauliflower. Season and mash until smooth.",
+      "Finish skillet: spread mash over the beef and veggies in an even layer. Garnish with chives.",
+      "Divide between plates."
+    ]
+  },
+  {
+    "id": 8,
+    "title": "Shrimp and spaghetti squash primavera",
+    "source": "Green Chef recipe card",
+    "servings": 2,
+    "cuisine": "Italian-American",
+    "protein": "shrimp",
+    "total_minutes": 35,
+    "tags": [
+      "weeknight",
+      "gluten-free",
+      "low-carb",
+      "seafood"
+    ],
+    "ingredients": [
+      {
+        "name": "spaghetti squash",
+        "amount": 17.5,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "italian seasoning",
+        "amount": 1,
+        "unit": "tbsp",
+        "prep": "divided"
+      },
+      {
+        "name": "shrimp",
+        "amount": 10,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "roma tomato",
+        "amount": 1,
+        "unit": "whole",
+        "prep": "small diced"
+      },
+      {
+        "name": "sunflower seeds",
+        "amount": 0.5,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "cream cheese",
+        "amount": 1,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "peas",
+        "amount": 2.5,
+        "unit": "oz",
+        "prep": ""
+      },
+      {
+        "name": "parmesan cheese",
+        "amount": 0.75,
+        "unit": "oz",
+        "prep": "divided"
+      },
+      {
+        "name": "chili flakes",
+        "amount": 1,
+        "unit": "tsp",
+        "prep": "to taste"
+      },
+      {
+        "name": "butter",
+        "amount": 3,
+        "unit": "tbsp",
+        "prep": "divided"
+      },
+      {
+        "name": "cooking oil",
+        "amount": null,
+        "unit": "",
+        "prep": "for squash, shrimp and pan"
+      },
+      {
+        "name": "salt and pepper",
+        "amount": null,
+        "unit": "",
+        "prep": "to taste"
+      }
+    ],
+    "steps": [
+      "Roast squash: preheat oven to 450°F. Halve spaghetti squash if needed and scoop out seeds. Drizzle insides with 1-2 tbsp oil; season with 1 tsp Italian seasoning, 1/4 tsp salt and pepper. Roast cut side down on a lightly oiled, foil-lined baking sheet 20-25 min, until strands separate easily with a fork.",
+      "Season shrimp: rinse and pat dry. In a medium bowl, season with 1 tsp Italian seasoning, 1/4 tsp salt and pepper. Drizzle with 1 tbsp oil and stir. Let sit at least 10 min.",
+      "Prep: small dice the Roma tomato (about 1/4 inch).",
+      "Toast seeds: toast sunflower seeds in a dry medium sauté pan over medium heat 3-4 min, stirring often, until fragrant. Cool and roughly chop.",
+      "Cook shrimp: melt 1 tbsp butter in the same pan over medium-high. Add shrimp and cook 5-6 min, stirring occasionally, until fully cooked (145°F). Move to a plate.",
+      "Make sauce: bring about 1/4 cup water to a simmer in the shrimp pan over medium-high; simmer 2-3 min until reduced by about a third. Off heat, whisk in cream cheese. Return shrimp, stir to coat, season to taste.",
+      "Finish squash: separate strands from the peel with a fork (use tongs or an oven mitt; it's hot). Melt 2 tbsp butter in a large sauté pan over medium. Add squash strands, tomato, peas, about half the Parmesan and 1/4 cup water. Cook 3-4 min until cheese melts and veggies are warm. Season to taste.",
+      "Plate: divide squash and veggies between bowls, top with creamy shrimp and any remaining sauce. Garnish with sunflower seeds, remaining Parmesan and chili flakes to taste."
+    ]
   }
 ]

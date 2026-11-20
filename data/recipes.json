@@ -851,5 +851,119 @@
       "Finish pasta: add cream cheese, half the Parmesan, reserved pasta water and 1 tsp lemon zest (2 tsp for 4) to the linguine. Stir to combine. Season with salt and pepper.",
       "Plate: slice each cutlet into 5-7 pieces. Divide linguine between plates, top with chicken, spoon sage brown butter piccata sauce over. Garnish with remaining Parmesan and serve with lemon wedges."
     ]
+  },
+  {
+    "id": 10,
+    "title": "Spiced pork tacos with pineapple salsa",
+    "source": "Green Chef recipe card (#10)",
+    "servings": 2,
+    "cuisine": "Mexican",
+    "protein": "ground pork",
+    "total_minutes": 20,
+    "tags": [
+      "weeknight",
+      "tacos",
+      "quick"
+    ],
+    "ingredients": [
+      {
+        "name": "pineapple",
+        "amount": 3.25,
+        "unit": "oz",
+        "prep": "roughly chopped, juice discarded"
+      },
+      {
+        "name": "scallion",
+        "amount": 1,
+        "unit": "whole",
+        "prep": "thinly sliced"
+      },
+      {
+        "name": "cilantro",
+        "amount": 0.25,
+        "unit": "oz",
+        "prep": "roughly chopped"
+      },
+      {
+        "name": "lime",
+        "amount": 1,
+        "unit": "whole",
+        "prep": "half zested, quartered"
+      },
+      {
+        "name": "ground pork",
+        "amount": 10,
+        "unit": "oz",
+        "prep": null
+      },
+      {
+        "name": "umami stock concentrate",
+        "amount": 1,
+        "unit": "whole",
+        "prep": null
+      },
+      {
+        "name": "orange-chili spice blend",
+        "amount": 1.5,
+        "unit": "tsp",
+        "prep": null
+      },
+      {
+        "name": "spiced enchilada sauce",
+        "amount": 2.25,
+        "unit": "oz",
+        "prep": null
+      },
+      {
+        "name": "sour cream",
+        "amount": 2,
+        "unit": "oz",
+        "prep": null
+      },
+      {
+        "name": "flour tortillas",
+        "amount": 6,
+        "unit": "whole",
+        "prep": null
+      },
+      {
+        "name": "monterey jack cheese",
+        "amount": 1,
+        "unit": "oz",
+        "prep": null
+      },
+      {
+        "name": "sugar",
+        "amount": 0.25,
+        "unit": "tsp",
+        "prep": null
+      },
+      {
+        "name": "cooking oil",
+        "amount": 1.5,
+        "unit": "tbsp",
+        "prep": null
+      },
+      {
+        "name": "salt",
+        "amount": 0.25,
+        "unit": "tsp",
+        "prep": "plus to taste"
+      },
+      {
+        "name": "pepper",
+        "amount": null,
+        "unit": "to taste",
+        "prep": null
+      }
+    ],
+    "steps": [
+      "Prep: roughly chop pineapple (discard excess juice). Trim and thinly slice scallion. De-stem cilantro and roughly chop leaves. Zest half the lime into a small bowl, then quarter lime.",
+      "Make pineapple salsa: in a second small bowl combine pineapple, scallion, cilantro and 1/4 tsp sugar (1/2 tsp for 4). Squeeze 1-2 lime wedges (2-4 for 4) over. Season with salt and pepper and stir.",
+      "Season and cook pork: heat 1 1/2 tbsp cooking oil in a large sauté pan over medium-high. Add ground pork and umami stock concentrate. Season with orange-chili spice blend, 1/4 tsp salt (1/2 tsp for 4) and a pinch of pepper. Cook 4-6 minutes, breaking up pork, until fully cooked (160°F internal). Stir in spiced enchilada sauce and cook 1-2 minutes more until heated through.",
+      "Make lime crema: add sour cream to the bowl with lime zest and stir. Add water 1 tsp at a time until drizzly. Season with salt and pepper.",
+      "Warm tortillas: wrap in damp paper towels and microwave 30 seconds until warm and pliable.",
+      "Plate: divide tortillas between plates. Fill with spiced pork and pineapple salsa, top with Monterey Jack, drizzle with lime crema. Serve with remaining lime wedges."
+    ]
   }
 ]

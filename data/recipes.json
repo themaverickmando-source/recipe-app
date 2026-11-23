@@ -965,5 +965,138 @@
       "Warm tortillas: wrap in damp paper towels and microwave 30 seconds until warm and pliable.",
       "Plate: divide tortillas between plates. Fill with spiced pork and pineapple salsa, top with Monterey Jack, drizzle with lime crema. Serve with remaining lime wedges."
     ]
+  },
+  {
+    "id": 11,
+    "title": "Gyro-spiced pork filet kale salad",
+    "source": "Green Chef recipe card (#13)",
+    "servings": 2,
+    "cuisine": "Greek",
+    "protein": "pork tenderloin",
+    "total_minutes": 30,
+    "tags": [
+      "weeknight",
+      "salad",
+      "sheet pan"
+    ],
+    "ingredients": [
+      {
+        "name": "pita",
+        "amount": 2,
+        "unit": "whole",
+        "prep": "1 diced for croutons"
+      },
+      {
+        "name": "kale",
+        "amount": 3.5,
+        "unit": "oz",
+        "prep": "stemmed, chopped"
+      },
+      {
+        "name": "roma tomato",
+        "amount": 1,
+        "unit": "whole",
+        "prep": "small diced"
+      },
+      {
+        "name": "dates",
+        "amount": 0.75,
+        "unit": "oz",
+        "prep": "sliced into rounds"
+      },
+      {
+        "name": "pork filets",
+        "amount": 5,
+        "unit": "oz",
+        "prep": "2 filets"
+      },
+      {
+        "name": "gyro-style seasoning",
+        "amount": 1.5,
+        "unit": "tsp",
+        "prep": null
+      },
+      {
+        "name": "garlic powder",
+        "amount": 1,
+        "unit": "tsp",
+        "prep": "half for croutons"
+      },
+      {
+        "name": "white balsamic vinegar",
+        "amount": 0.75,
+        "unit": "oz",
+        "prep": null
+      },
+      {
+        "name": "honey",
+        "amount": 0.5,
+        "unit": "oz",
+        "prep": null
+      },
+      {
+        "name": "feta cheese",
+        "amount": 2,
+        "unit": "oz",
+        "prep": "divided"
+      },
+      {
+        "name": "sour cream",
+        "amount": 0.25,
+        "unit": "cup",
+        "prep": "for homemade lemon dill sauce"
+      },
+      {
+        "name": "lemon juice",
+        "amount": 1,
+        "unit": "tsp",
+        "prep": "for sauce"
+      },
+      {
+        "name": "lemon zest",
+        "amount": 0.25,
+        "unit": "tsp",
+        "prep": "for sauce"
+      },
+      {
+        "name": "dill",
+        "amount": 1,
+        "unit": "tsp",
+        "prep": "fresh chopped, or 1/2 tsp dried, for sauce"
+      },
+      {
+        "name": "cooking oil",
+        "amount": 4,
+        "unit": "tsp",
+        "prep": "1 tbsp + 1 tsp"
+      },
+      {
+        "name": "olive oil",
+        "amount": 1,
+        "unit": "tbsp",
+        "prep": null
+      },
+      {
+        "name": "salt",
+        "amount": null,
+        "unit": "to taste",
+        "prep": null
+      },
+      {
+        "name": "pepper",
+        "amount": null,
+        "unit": "to taste",
+        "prep": null
+      }
+    ],
+    "steps": [
+      "Prep: preheat oven to 400°F. Medium dice one pita (both for 4 servings) into 1/2-inch pieces. Remove thick stems from kale and roughly chop leaves. Small dice Roma tomato into 1/4-inch pieces. Cut dates widthwise into 1/4-inch rounds.",
+      "Season and cook pork: pat pork filets dry, season with gyro-style seasoning, salt and pepper. Heat 1 tbsp cooking oil in a medium oven-safe sauté pan (large for 4) over medium-high. Sear pork on all sides 3-5 minutes until lightly browned. Transfer pan to oven and roast 8-12 minutes until pork reaches 145°F. Rest on a cutting board at least 3 minutes.",
+      "Make pita croutons: toss diced pita with 1 tsp cooking oil (2 tsp for 4), half the garlic powder (all for 4), salt and pepper. Spread on a lightly oiled foil-lined baking sheet and toast 5-7 minutes until lightly browned.",
+      "Make vinaigrette: in the same bowl whisk white balsamic vinegar, honey and 1 tbsp olive oil (2 tbsp for 4). Season with salt and pepper to taste.",
+      "Make salad: add kale to vinaigrette, lightly salt, and massage until leaves soften. Add tomato, dates and about half the feta. Toss and season.",
+      "Plate: slice pork into 6-8 pieces. Divide salad between bowls, top with pork, drizzle with sour cream with lemon and dill. Garnish with pita croutons and remaining feta.",
+      "Homemade sour cream with lemon and dill (Chef's addition, replaces the kit packet; about 2 oz for 2 servings, double for 4): stir 1/4 cup sour cream, 1 tsp lemon juice, 1/4 tsp lemon zest, 1 tsp chopped fresh dill (or 1/2 tsp dried), a small pinch of garlic powder, salt and pepper. Thin with water 1 tsp at a time until drizzly. Rest 10 minutes in the fridge so the dill blooms."
+    ]
   }
 ]

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Cabo Cooks icon. A white chef's toque drawn as shapes, on the amber
+    used for buttons in styles.css (the accent color). No text, so it stays sharp
+    at any size.
+  -->
+  <circle cx="256" cy="256" r="256" fill="#f0b429"/>
+  <g fill="#ffffff">
+    <rect x="120" y="346" width="272" height="54" rx="27"/>
+    <rect x="164" y="284" width="184" height="82" rx="14"/>
+    <ellipse cx="184" cy="222" rx="72" ry="80"/>
+    <ellipse cx="328" cy="222" rx="72" ry="80"/>
+    <ellipse cx="256" cy="164" rx="84" ry="74"/>
+    <ellipse cx="256" cy="216" rx="90" ry="72"/>
+    <rect x="184" y="200" width="144" height="100"/>
+  </g>
+  <!-- A thin gap so the crown sits on the brim instead of melting into it. -->
+  <rect x="164" y="332" width="184" height="10" fill="#f0b429"/>
+</svg>

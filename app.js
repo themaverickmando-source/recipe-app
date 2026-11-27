@@ -1,5 +1,5 @@
 /*
-  Manolo's recipe book.
+  Cabo Cooks.
 
   What this file does, in order:
     1. Load the recipes. The starting book is data/recipes.json. Recipes
@@ -846,7 +846,7 @@ function showFromHash() {
     cook.hidden = true;
     cook.innerHTML = "";
     home.hidden = false;
-    document.title = "Recipes";
+    document.title = "Cabo Cooks";
     updateNav();
     window.scrollTo(0, y);
     return;
@@ -2580,7 +2580,7 @@ function editorFormHtml(recipe) {
 
   return (
     "<form id=\"recipe-form\" autocomplete=\"off\" novalidate>" +
-      "<p class=\"kicker\">Manolo's kitchen</p>" +
+      "<p class=\"kicker\">Cabo Cooks</p>" +
       "<h1>" + (isEdit ? "Edit recipe" : "New recipe") + "</h1>" +
       "<label class=\"field\">" +
         "<span class=\"field-label\">Title</span>" +
@@ -2643,7 +2643,7 @@ function drawEditor() {
 
   if (loadFailed) {
     editor.innerHTML = loadErrorEditorHtml();
-    document.title = "Recipes";
+    document.title = "Cabo Cooks";
     window.scrollTo(0, 0);
     return;
   }
@@ -3068,10 +3068,36 @@ function onEditorInput(event) {
   }
 }
 
+// --- Offline -------------------------------------------------------------
+
+// Ask the browser to keep a copy of this site for the next visit.
+// "sw.js" is relative to this page, so the GitHub Pages folder still works.
+// The worker does not touch localStorage. recipe-app.grocery and
+// recipe-app.userRecipes stay on this phone either way.
+function registerServiceWorker() {
+  var ready;
+  try {
+    if (!navigator.serviceWorker || typeof navigator.serviceWorker.register !== "function") {
+      return;
+    }
+    ready = navigator.serviceWorker.register("sw.js", { scope: "./" });
+  } catch (error) {
+    // Private mode and older browsers can refuse a worker. The page still runs.
+    return;
+  }
+  if (ready && typeof ready.catch === "function") {
+    ready.catch(function () {
+      // The book still works as a normal page if the worker cannot install.
+    });
+  }
+}
+
 // --- Start ---------------------------------------------------------------
 
 // The script tag is at the bottom of index.html, so the elements exist.
 async function start() {
+  registerServiceWorker();
+
   document.getElementById("search").addEventListener("input", function () {
     if (ready) {
       renderList();
